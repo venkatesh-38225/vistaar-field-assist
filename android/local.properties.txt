@@ -1,0 +1,5 @@
+sdk.dir=/home/gururaj/Android/Sdk
+flutter.sdk=/home/gururaj/development/flutter
+flutter.buildMode=release
+flutter.versionName=2.1.3
+flutter.versionCode=38

@@ -1,0 +1,89 @@
+name: re_kyc_mobile_app
+description: "A new Flutter project."
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`. This is preferred for private packages.
+publish_to: "none" # Remove this line if you wish to publish to pub.dev
+
+# The following defines the version and build number for your application.
+# A version number is three numbers separated by dots, like 1.2.43
+# followed by an optional build number separated by a +.
+# Both the version and the builder number may be overridden in flutter
+# build by specifying --build-name and --build-number, respectively.
+# In Android, build-name is used as versionName while build-number used as versionCode.
+# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
+# In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
+# In Windows, build-name is used as the major, minor, and patch parts
+# of the product and file versions while build-number is used as the build suffix.
+version: 2.8.1+43
+
+environment:
+  sdk: ">=3.4.3 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The following adds the Cupertino Icons font to your application.
+  # Use with the CupertinoIcons class for iOS style icons.
+  cupertino_icons: ^1.0.8
+  get: ^4.6.6
+  google_fonts: ^6.3.1
+  custom_sliding_segmented_control: ^1.8.5
+  http: ^1.2.2
+  uuid: ^4.5.1
+  flutter_slider_drawer: ^3.0.2
+  image_picker: ^1.1.2
+  intl: ^0.20.2
+  flutter_staggered_grid_view: ^0.7.0
+  carousel_slider: ^5.0.0
+  #  flutter_pdfview: ^1.4.0
+  webview_flutter: ^4.7.0
+  path_provider: ^2.1.5
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  flutter_secure_storage: ^9.2.4
+  file_picker: ^10.3.1
+  path: ^1.9.0
+  auto_size_text: ^3.0.0
+  permission_handler: ^12.0.1
+  url_launcher: ^6.1.12
+  share_plus: ^12.0.1
+  media_store_plus: 0.1.3
+  native_exif: ^0.7.0
+  exif: ^2.2.0
+  package_info_plus: ^9.0.1
+  video_player: ^2.8.5
+  geolocator: ^9.0.2
+  flutter_image_compress: ^2.2.0
+  video_compress: ^3.1.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_launcher_icons: ^0.14.3
+
+  flutter_lints: ^6.0.0
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.13
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/Assist-logo.png"
+  remove_alpha_ios: true
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter packages.
+flutter:
+  # The following line ensures that the Material Icons font is
+  # included with your application, so that you can use the icons in
+  # the material Icons class.
+  uses-material-design: true
+
+  # To add assets to your application, add an assets section, like this:
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/pdfjs/

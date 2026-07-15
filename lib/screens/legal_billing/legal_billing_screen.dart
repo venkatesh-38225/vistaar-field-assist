@@ -1,0 +1,517 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:re_kyc_mobile_app/models/legal_billing_res.dart';
+import 'package:re_kyc_mobile_app/models/profile_response.dart';
+import 'package:re_kyc_mobile_app/screens/legal_billing/create_legal_billing.dart';
+import 'package:re_kyc_mobile_app/screens/legal_billing/edit_legal_billing.dart';
+import 'package:re_kyc_mobile_app/screens/legal_billing/legal_billing_management.dart';
+import 'package:re_kyc_mobile_app/service/api_client.dart';
+import 'package:re_kyc_mobile_app/utils/constant.dart';
+import 'package:re_kyc_mobile_app/widgets/custom_text.dart';
+import 'package:re_kyc_mobile_app/utils/global_snackbar.dart';
+import 'package:intl/intl.dart';
+
+class LegalBillingScreen extends StatefulWidget {
+  const LegalBillingScreen({
+    super.key,
+    required this.profile,
+    required this.access,
+  });
+
+  final ProfileResponse profile;
+  final String access;
+
+  @override
+  State<LegalBillingScreen> createState() => _LegalBillingScreenState();
+}
+
+class _LegalBillingScreenState extends State<LegalBillingScreen> {
+  final TextEditingController searchController = TextEditingController();
+  bool isLoading = false;
+  List<LegalBillingData> billingRecords = [];
+  List<LegalBillingData> filteredRecords = [];
+
+  String selectedStatus = "Pending";
+  final List<String> statusOptions = ["Pending", "In Progress", "Completed"];
+
+  @override
+  void initState() {
+    super.initState();
+    fetchBillingRecords();
+    searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    searchController.removeListener(_onSearchChanged);
+    searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    setState(() {
+      filteredRecords = billingRecords.where((record) {
+        final query = searchController.text.toLowerCase();
+        return record.lan.toLowerCase().contains(query) ||
+            record.customerName.toLowerCase().contains(query) ||
+            record.advocateName.toLowerCase().contains(query);
+      }).toList();
+    });
+  }
+
+  Future<void> fetchBillingRecords() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final String userId = widget.profile.data?.employeeId ?? "";
+      final String role = widget.profile.data?.role ?? "";
+
+      final response = await ApiClient().getLegalBillingByUser(
+        userId,
+        selectedStatus == "In Progress" ? "inprogress" : selectedStatus,
+        role,
+      );
+
+      if (response != null && response.success) {
+        setState(() {
+          billingRecords = response.data;
+          filteredRecords = response.data;
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          billingRecords = [];
+          filteredRecords = [];
+          isLoading = false;
+        });
+        GlobalSnackbar.showError(
+            response?.message ?? "Failed to fetch records");
+      }
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+      GlobalSnackbar.showError("Something went wrong");
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white.withOpacity(0.9),
+      appBar: AppBar(
+        backgroundColor: Constant.mediumBlueColor,
+        automaticallyImplyLeading: true,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Row(
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: Colors.white.withOpacity(0.2),
+              child: Image.asset(
+                'assets/images/v_logo_white.png',
+                height: 30,
+                width: 30,
+              ),
+            ),
+            const SizedBox(width: 10),
+            const CustomText(
+              text: 'Legal Billing',
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ],
+        ),
+      ),
+      body: RefreshIndicator(
+        onRefresh: fetchBillingRecords,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildStatusTabs(),
+              const SizedBox(height: 10),
+              // Filters Section
+              Row(
+                children: [
+                  Expanded(
+                    child: Card(
+                      elevation: 5,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: TextField(
+                        controller: searchController,
+                        style: const TextStyle(color: Colors.black),
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.white,
+                          hintText: 'Search...',
+                          hintStyle:
+                              const TextStyle(color: Colors.grey, fontSize: 14),
+                          prefixIcon:
+                              const Icon(Icons.search, color: Colors.grey),
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 10),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (widget.access.toUpperCase() == "CREATE") ...[
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        final result =
+                            await Get.to(() => CreateLegalBillingScreen(
+                                  employeeId:
+                                      widget.profile.data?.employeeId ?? "",
+                                  branchCode:
+                                      widget.profile.data?.branchCode ?? "",
+                                ));
+                        if (result == true) fetchBillingRecords();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Constant.mediumYellowColor,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        elevation: 5,
+                      ),
+                      icon:
+                          const Icon(Icons.add, color: Colors.white, size: 20),
+                      label: const CustomText(
+                        text: 'Create',
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 10),
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CustomText(
+                    text: 'Scroll down to refresh',
+                    fontSize: 10,
+                  ),
+                  SizedBox(width: 3),
+                  Icon(
+                    Icons.arrow_downward_sharp,
+                    size: 10,
+                  )
+                ],
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: Constant.lightBlueColor,
+                        ),
+                      )
+                    : filteredRecords.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.account_balance_wallet_outlined,
+                                  size: 80,
+                                  color: Colors.grey.withOpacity(0.5),
+                                ),
+                                const SizedBox(height: 16),
+                                CustomText(
+                                  text: 'No $selectedStatus Records Found',
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey,
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: filteredRecords.length,
+                            itemBuilder: (context, index) {
+                              final record = filteredRecords[index];
+                              return _buildBillingCard(record);
+                            },
+                          ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusTabs() {
+    return Row(
+      children: statusOptions.map((status) {
+        bool isSelected = selectedStatus == status;
+        return Expanded(
+          child: GestureDetector(
+            onTap: () {
+              if (selectedStatus != status) {
+                setState(() {
+                  selectedStatus = status;
+                });
+                fetchBillingRecords();
+              }
+            },
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: isSelected ? Constant.mediumBlueColor : Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+                border: Border.all(
+                  color: isSelected
+                      ? Constant.mediumBlueColor
+                      : Colors.grey.shade300,
+                ),
+              ),
+              child: Center(
+                child: CustomText(
+                  text: status,
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  color: isSelected ? Colors.white : Colors.grey.shade700,
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildBillingCard(LegalBillingData record) {
+    String currentRole = widget.profile.data?.role?.toUpperCase() ?? "";
+
+    bool canAct = (widget.access.toUpperCase() == "APPROVE" &&
+        selectedStatus == "Pending");
+    bool canEdit = (widget.access.toUpperCase() == "CREATE" &&
+        record.status.toLowerCase().contains("sentback"));
+
+    return Card(
+      elevation: 4,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      color: Colors.white,
+      child: Column(
+        children: [
+          ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+            title: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Constant.lightBlueColor.withOpacity(0.1),
+                  child: const Icon(
+                    Icons.description_outlined,
+                    color: Constant.lightBlueColor,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CustomText(
+                        text: record.customerName,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
+                      ),
+                      CustomText(
+                        text: 'LAN: ${record.lan}',
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: ((record.status.toLowerCase() == "completed" ||
+                                record.status
+                                    .toLowerCase()
+                                    .contains("approved"))
+                            ? Colors.green
+                            : record.status.toLowerCase().contains("rejected")
+                                ? Colors.red
+                                : Colors.orange)
+                        .withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: CustomText(
+                    text: record.status,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: (record.status.toLowerCase() == "completed" ||
+                            record.status.toLowerCase().contains("approved"))
+                        ? Colors.green.shade700
+                        : record.status.toLowerCase().contains("rejected")
+                            ? Colors.red.shade700
+                            : Colors.orange.shade700,
+                  ),
+                ),
+              ],
+            ),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Column(
+                children: [
+                  const Divider(height: 1),
+                  const SizedBox(height: 10),
+                  _buildInfoRow(
+                      Icons.person_pin, 'Advocate', record.advocateName),
+                  _buildInfoRow(Icons.category_outlined, 'Category',
+                      record.legalCategory),
+                  _buildInfoRow(
+                    Icons.currency_rupee,
+                    'Amount',
+                    '₹${record.paymentAmount.toStringAsFixed(2)}',
+                  ),
+                  _buildInfoRow(
+                    Icons.calendar_month_outlined,
+                    'Date',
+                    record.createdDate != null
+                        ? DateFormat('dd-MMM-yyyy').format(record.createdDate!)
+                        : 'N/A',
+                  ),
+                  if (selectedStatus == "In Progress")
+                    _buildInfoRow(
+                      Icons.calendar_month_outlined,
+                      'Pending with',
+                      record.status != null
+                          ? "${record.pendingRole} - ${record.pendingUser}"
+                          : 'N/A',
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const Divider(height: 1, indent: 15, endIndent: 15),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton.icon(
+                  onPressed: () => _navigateToManagement(record, false),
+                  icon: const Icon(Icons.visibility_outlined, size: 18),
+                  label: const Text('VIEW'),
+                  style: TextButton.styleFrom(
+                      foregroundColor: Constant.mediumBlueColor),
+                ),
+                if (canAct) ...[
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () => _navigateToManagement(record, true),
+                    icon: const Icon(Icons.play_circle_outline,
+                        size: 18, color: Colors.white),
+                    label: const Text('ACTION',
+                        style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Constant.mediumYellowColor,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                  ),
+                ],
+                if (canEdit) ...[
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () => _navigateToEdit(record),
+                    icon: const Icon(Icons.edit_note_outlined,
+                        size: 18, color: Colors.white),
+                    label: const Text('EDIT',
+                        style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue.shade700,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _navigateToManagement(LegalBillingData record, bool isAction) async {
+    final result = await Get.to(() => LegalBillingManagementScreen(
+          billingId: record.id,
+          profile: widget.profile,
+          isAction: isAction,
+        ));
+    if (result == true) fetchBillingRecords();
+  }
+
+  void _navigateToEdit(LegalBillingData record) async {
+    final result = await Get.to(() => EditLegalBillingScreen(
+          billingId: record.id,
+          employeeId: widget.profile.data?.employeeId ?? "",
+        ));
+    if (result == true) fetchBillingRecords();
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 5),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: Colors.grey.shade600),
+          const SizedBox(width: 8),
+          CustomText(
+            text: '$label: ',
+            fontSize: 13,
+            color: Colors.grey.shade600,
+            fontWeight: FontWeight.w500,
+          ),
+          Expanded(
+            child: CustomText(
+              text: value,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+              textAlign: TextAlign.end,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
