@@ -23,6 +23,7 @@ import 'package:re_kyc_mobile_app/models/foreclosure_details_response.dart';
 import '../models/download_legal_notice_file.dart';
 import '../models/get_roll_based_modules.dart';
 import '../models/notice_type_option.dart';
+import '../models/physical_filing_response.dart';
 import '../models/sarfaesi_details_res.dart';
 import '../models/uploaded_notice_res.dart';
 import '../models/download_notice_res.dart';
@@ -995,6 +996,115 @@ class ApiClient {
 
   //SARFAESI API's
 
+  Future<PhysicalFilingListResponse?> getPhysicalFilingByUser({
+    required String userId,
+    required String role,
+    required String status,
+  }) async {
+    final url = Uri.parse(
+      '${legalNoticebaseUrl}SARFAESI/PhysicalFiling/getByUser',
+    ).replace(
+      queryParameters: {
+        'userId': userId,
+        'role': role,
+        'status': status,
+      },
+    );
+    final response = await _client.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': 'ht9AfQrZmJnu0Gxl',
+      },
+    ).timeout(_timeLimit);
+
+    if (response.statusCode == 200) {
+      return PhysicalFilingListResponse.fromJson(json.decode(response.body));
+    }
+    return null;
+  }
+
+  Future<PhysicalFilingDetailsResponse?> getPhysicalFilingById(int id) async {
+    final url = Uri.parse(
+      '${legalNoticebaseUrl}SARFAESI/PhysicalFiling/$id',
+    );
+    final response = await _client.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': 'ht9AfQrZmJnu0Gxl',
+      },
+    ).timeout(_timeLimit);
+
+    if (response.statusCode == 200) {
+      return PhysicalFilingDetailsResponse.fromJson(json.decode(response.body));
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> submitPhysicalFilingChecklist(
+    Map<String, dynamic> payload,
+  ) async {
+    final url = Uri.parse(
+      '${legalNoticebaseUrl}SARFAESI/PhysicalFiling/submitFieldChecklist',
+    );
+    final response = await _client
+        .post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': 'ht9AfQrZmJnu0Gxl',
+          },
+          body: json.encode(payload),
+        )
+        .timeout(_timeLimit);
+
+    final decoded = json.decode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : null;
+  }
+
+  Future<Map<String, dynamic>?> assignPhysicalFilingAdvocate(
+    Map<String, dynamic> payload,
+  ) async {
+    final url = Uri.parse(
+      '${legalNoticebaseUrl}SARFAESI/PhysicalFiling/assignAdvocate',
+    );
+    final response = await _client
+        .post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': 'ht9AfQrZmJnu0Gxl',
+          },
+          body: json.encode(payload),
+        )
+        .timeout(_timeLimit);
+
+    final decoded = json.decode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : null;
+  }
+
+  Future<Map<String, dynamic>?> submitPhysicalFiling(
+    Map<String, dynamic> payload,
+  ) async {
+    final url = Uri.parse(
+      '${legalNoticebaseUrl}SARFAESI/PhysicalFiling/submitFiling',
+    );
+    final response = await _client
+        .post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': 'ht9AfQrZmJnu0Gxl',
+          },
+          body: json.encode(payload),
+        )
+        .timeout(_timeLimit);
+
+    final decoded = json.decode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : null;
+  }
+
   Future<SarfaesiResponse?> getSarfaesiList(
       String userId, String status, String role) async {
     var url = Uri.parse(
@@ -1213,9 +1323,17 @@ class ApiClient {
     }
   }
 
-  Future<List<String>?> getMappedLans(String empId) async {
-    var url =
-        Uri.parse('${legalNoticebaseUrl}SARFAESI/getMappedLans?empId=$empId');
+  Future<List<Map<String, String>>?> getMappedLansWithDetails(
+    String empId, {
+    required String sectionCode,
+  }) async {
+    final url =
+        Uri.parse('${legalNoticebaseUrl}SARFAESI/getMappedLans').replace(
+      queryParameters: {
+        'empId': empId,
+        'sectionCode': sectionCode,
+      },
+    );
     final response = await _client.get(
       url,
       headers: {
@@ -1228,8 +1346,36 @@ class ApiClient {
       final responseBody = json.decode(response.body);
       print("Response: ${responseBody}");
       if (responseBody['success'] == true && responseBody['data'] != null) {
-        return (responseBody['data'] as List).map((e) => e.toString()).toList();
+        final list = responseBody['data'] as List;
+        return list.map<Map<String, String>>((e) {
+          if (e is Map) {
+            return {
+              'lan': e['lan']?.toString() ?? '',
+              'customerName': e['customerName']?.toString() ??
+                  e['custName']?.toString() ??
+                  '',
+            };
+          }
+          return {
+            'lan': e.toString(),
+            'customerName': '',
+          };
+        }).toList();
       }
+    }
+    return null;
+  }
+
+  Future<List<String>?> getMappedLans(
+    String empId, {
+    required String sectionCode,
+  }) async {
+    final data = await getMappedLansWithDetails(
+      empId,
+      sectionCode: sectionCode,
+    );
+    if (data != null) {
+      return data.map((e) => e['lan']!).where((lan) => lan.isNotEmpty).toList();
     }
     return null;
   }

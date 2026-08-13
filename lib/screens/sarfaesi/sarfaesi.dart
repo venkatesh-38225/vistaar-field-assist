@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:re_kyc_mobile_app/models/legal_billing_res.dart';
 import 'package:re_kyc_mobile_app/models/profile_response.dart';
 import 'package:re_kyc_mobile_app/models/sarfaesi_res.dart';
-import 'package:re_kyc_mobile_app/screens/sarfaesi/create_sarfaesi_screen.dart';
+import 'package:re_kyc_mobile_app/screens/sarfaesi/sarfaesi_lan_list_screen.dart';
 import 'package:re_kyc_mobile_app/screens/sarfaesi/edit_sarfaesi_screen.dart';
 import 'package:re_kyc_mobile_app/screens/sarfaesi/sarfaesi_management.dart';
 import 'package:re_kyc_mobile_app/service/api_client.dart';
@@ -191,7 +191,7 @@ class _SarfaesiScreenState extends State<SarfaesiScreen> with RouteAware {
                   if (widget.access.toUpperCase() == "CREATE") ...[
                     ElevatedButton.icon(
                       onPressed: () async {
-                        final result = await Get.to(() => CreateSarfaesiScreen(
+                        final result = await Get.to(() => SarfaesiLanListScreen(
                               employeeId: widget.profile.data?.employeeId ?? "",
                               branchCode: widget.profile.data?.branchCode ?? "",
                             ));

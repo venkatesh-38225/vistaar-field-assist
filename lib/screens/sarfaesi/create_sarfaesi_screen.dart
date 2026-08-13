@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:ffi';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -12,8 +11,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:re_kyc_mobile_app/models/loan_details_res.dart';
 import 'package:video_player/video_player.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:re_kyc_mobile_app/screens/legal_notice/legal_notice_screen.dart';
 import 'package:re_kyc_mobile_app/service/api_client.dart';
 import 'package:re_kyc_mobile_app/utils/constant.dart';
 import 'package:re_kyc_mobile_app/widgets/custom_text.dart';
@@ -49,10 +46,12 @@ class CreateSarfaesiScreen extends StatefulWidget {
     super.key,
     required this.employeeId,
     required this.branchCode,
+    this.initialLan,
   });
 
   final String employeeId;
   final String branchCode;
+  final String? initialLan;
 
   @override
   State<CreateSarfaesiScreen> createState() => _CreateSarfaesiScreenState();
@@ -187,19 +186,30 @@ class _CreateSarfaesiScreenState extends State<CreateSarfaesiScreen> {
   void initState() {
     super.initState();
     lanFocusNode = FocusNode();
-    fetchMappedLans();
+    if (widget.initialLan != null && widget.initialLan!.isNotEmpty) {
+      lanController.text = widget.initialLan!;
+      searchLanDetails();
+    } else {
+      fetchMappedLans();
+    }
   }
 
   Future<void> fetchMappedLans() async {
+    if (!mounted) return;
     setState(() => isMappedLansLoading = true);
     try {
-      final lans = await ApiClient().getMappedLans(widget.employeeId);
+      final lans = await ApiClient().getMappedLans(
+        widget.employeeId,
+        sectionCode: 'SARFAESI13',
+      );
 
+      if (!mounted) return;
       setState(() {
         mappedLans = lans ?? [];
         isMappedLansLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => isMappedLansLoading = false);
     }
   }
@@ -262,6 +272,7 @@ class _CreateSarfaesiScreenState extends State<CreateSarfaesiScreen> {
           response['data']['success'] == true) {
         final List<dynamic> dataList = response['data']['data'] ?? [];
 
+        if (!mounted) return;
         setState(() {
           _collaterals = dataList
               .map((item) => {
@@ -284,26 +295,29 @@ class _CreateSarfaesiScreenState extends State<CreateSarfaesiScreen> {
   }
 
   Future<void> searchLanDetails() async {
-    lanFocusNode.unfocus();
-    FocusScope.of(context).unfocus();
-
     final lan = lanController.text.trim();
     if (lan.isEmpty) {
       GlobalSnackbar.showError('Please enter LAN number');
       return;
     }
 
-    final bool isLanAvailable = mappedLans.any((availableLan) =>
-        availableLan.trim().toUpperCase() == lan.toUpperCase());
-    if (!isLanAvailable) {
-      GlobalSnackbar.showError('This LAN is not in your available LANs list');
-
-      setState(() {
-        _clearDetails();
-      });
-      return;
+    if (widget.initialLan == null || widget.initialLan!.isEmpty) {
+      if (mappedLans.isNotEmpty) {
+        final bool isLanAvailable = mappedLans.any((availableLan) =>
+            availableLan.trim().toUpperCase() == lan.toUpperCase());
+        if (!isLanAvailable) {
+          GlobalSnackbar.showError(
+              'This LAN is not in your available LANs list');
+          if (!mounted) return;
+          setState(() {
+            _clearDetails();
+          });
+          return;
+        }
+      }
     }
 
+    if (!mounted) return;
     setState(() {
       isLanSearching = true;
       _clearDetails();
@@ -313,12 +327,14 @@ class _CreateSarfaesiScreenState extends State<CreateSarfaesiScreen> {
       final response = await ApiClient().getLanNoticeDetails(lan);
       final foreClosureResponse = await ApiClient().getForeClosureDetails(lan);
 
+      if (!mounted) return;
+
       if (response is LoanDetailsResponse && response.fullName != null) {
         setState(() {
           _lan = response.lan ?? '';
           _customerName = response.fullName ?? '';
           _pos = foreClosureResponse?.pos?.toString() ?? '';
-          _tos = foreClosureResponse?.totalOutstanding ?? "" ?? '';
+          _tos = foreClosureResponse?.totalOutstanding ?? '';
           _dpd = response.dpd ?? '';
           _branch = response.branch?.branchName ?? '';
           _branchCode = response.branch?.branchCode ?? '';
@@ -334,10 +350,6 @@ class _CreateSarfaesiScreenState extends State<CreateSarfaesiScreen> {
         });
 
         await _fetchCollateralsByLan();
-        Future.delayed(const Duration(milliseconds: 100), () {
-          lanFocusNode.unfocus();
-          FocusScope.of(context).unfocus();
-        });
       } else {
         String errMsg = 'No data found for this LAN';
         if (response is String) {
@@ -345,6 +357,7 @@ class _CreateSarfaesiScreenState extends State<CreateSarfaesiScreen> {
         } else if (response is Map) {
           errMsg = response['message']?.toString() ?? errMsg;
         }
+        if (!mounted) return;
         setState(() {
           isLanSearching = false;
           isDetailsFetched = false;
@@ -352,6 +365,7 @@ class _CreateSarfaesiScreenState extends State<CreateSarfaesiScreen> {
         GlobalSnackbar.showError(errMsg);
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         isLanSearching = false;
         isDetailsFetched = false;
@@ -1366,196 +1380,56 @@ class _CreateSarfaesiScreenState extends State<CreateSarfaesiScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ─── LAN SEARCH ──────────────────────────────────────────
-              // ─── LAN SEARCH (Autocomplete) ───────────────────────────────
-              _buildSectionTitle('LAN Search'),
-              const SizedBox(height: 10),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: RawAutocomplete<String>(
-                      textEditingController: lanController,
-                      focusNode: lanFocusNode,
-                      optionsBuilder: (TextEditingValue textEditingValue) {
-                        if (textEditingValue.text.isEmpty) {
-                          return mappedLans;
-                        }
-                        return mappedLans.where((lan) => lan
-                            .toUpperCase()
-                            .contains(textEditingValue.text.toUpperCase()));
-                      },
-                      displayStringForOption: (option) => option,
-                      fieldViewBuilder: (context, textController, focusNode,
-                          onFieldSubmitted) {
-                        return TextFormField(
-                          controller: textController,
-                          focusNode: focusNode,
-                          textCapitalization: TextCapitalization.characters,
-                          inputFormatters: [UpperCaseTextFormatter()],
-                          decoration: InputDecoration(
-                            hintText: isMappedLansLoading
-                                ? 'Loading LANs...'
-                                : 'Enter LAN',
-                            contentPadding: contentPadding,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(5),
-                              borderSide: const BorderSide(
-                                  color: Colors.black, width: 0.5),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(5),
-                              borderSide: const BorderSide(
-                                  color: Colors.black, width: 0.5),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(5),
-                              borderSide: const BorderSide(
-                                  color: Constant.mediumBlueColor, width: 1.0),
-                            ),
-                            errorBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(5),
-                              borderSide: const BorderSide(
-                                  color: Colors.red, width: 1.0),
-                            ),
-                            focusedErrorBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(5),
-                              borderSide: const BorderSide(
-                                  color: Colors.red, width: 1.0),
-                            ),
-                            filled: true,
-                            fillColor: Colors.white,
-                            suffixIcon: isMappedLansLoading
-                                ? const Padding(
-                                    padding: EdgeInsets.all(12),
-                                    child: SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2),
-                                    ),
-                                  )
-                                : (textController.text.isNotEmpty
-                                    ? IconButton(
-                                        icon: const Icon(Icons.clear,
-                                            size: 18, color: Colors.grey),
-                                        onPressed: () {
-                                          textController.clear();
-                                          setState(() {
-                                            _clearDetails();
-                                          });
-                                        },
-                                      )
-                                    : null),
-                          ),
-                          validator: (v) =>
-                              v == null || v.isEmpty ? 'LAN is required' : null,
-                          onChanged: (_) =>
-                              setState(() {}), // refresh suffix icon state
-                        );
-                      },
-                      optionsViewBuilder: (context, onSelected, options) {
-                        return Align(
-                          alignment: Alignment.topLeft,
-                          child: Material(
-                            elevation: 4,
-                            borderRadius: BorderRadius.circular(8),
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(
-                                  maxHeight: 220, minWidth: 250),
-                              child: options.isEmpty
-                                  ? Padding(
-                                      padding: const EdgeInsets.all(14),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            mappedLans.isEmpty
-                                                ? Icons.info_outline
-                                                : Icons.search_off,
-                                            size: 16,
-                                            color: Colors.grey.shade500,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              mappedLans.isEmpty
-                                                  ? 'No LANs available'
-                                                  : 'No matching LAN found',
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                color: Colors.grey.shade600,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    )
-                                  : ListView.separated(
-                                      padding: EdgeInsets.zero,
-                                      shrinkWrap: true,
-                                      itemCount: options.length,
-                                      separatorBuilder: (_, __) =>
-                                          const Divider(height: 1),
-                                      itemBuilder: (context, index) {
-                                        final option = options.elementAt(index);
-                                        return ListTile(
-                                          dense: true,
-                                          leading: const Icon(
-                                            Icons
-                                                .account_balance_wallet_outlined,
-                                            size: 18,
-                                            color: Constant.mediumBlueColor,
-                                          ),
-                                          title: Text(
-                                            option,
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          onTap: () => onSelected(option),
-                                        );
-                                      },
-                                    ),
-                            ),
-                          ),
-                        );
-                      },
-                      onSelected: (String selected) {
-                        lanController.text = selected;
-                        FocusScope.of(context).unfocus();
-                        searchLanDetails();
-                      },
-                    ),
+              if (isLanSearching) ...[
+                const SizedBox(height: 100),
+                const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        color: Constant.mediumBlueColor,
+                      ),
+                      SizedBox(height: 16),
+                      CustomText(
+                        text: 'Fetching LAN details...',
+                        fontSize: 16,
+                        color: Colors.grey,
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 10),
-                  SizedBox(
-                    height: 46,
-                    child: ElevatedButton(
-                      onPressed: isLanSearching ? null : searchLanDetails,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Constant.mediumYellowColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(5),
+                ),
+              ] else if (!isDetailsFetched) ...[
+                const SizedBox(height: 100),
+                Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        size: 60,
+                        color: Colors.redAccent,
+                      ),
+                      const SizedBox(height: 16),
+                      const CustomText(
+                        text: 'Failed to load LAN details',
+                        fontSize: 16,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: searchLanDetails,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Constant.mediumBlueColor,
+                        ),
+                        child: const CustomText(
+                          text: 'Retry',
+                          color: Colors.white,
                         ),
                       ),
-                      child: isLanSearching
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white),
-                            )
-                          : const Icon(Icons.search, color: Colors.white),
-                    ),
+                    ],
                   ),
-                ],
-              ),
-              // ─── DETAILS CARD (shown after LAN search) ───────────────
-              if (isDetailsFetched) ...[
-                const SizedBox(height: 20),
-
+                ),
+              ] else if (isDetailsFetched) ...[
                 // Customer Details Card
                 _buildSectionTitle('LAN Details'),
                 const SizedBox(height: 10),

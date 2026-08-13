@@ -196,7 +196,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 20),
                       // Forgot Password
                       TextButton(
-                        onPressed: () {},
+                        onPressed: _openForgotPassword,
                         child: const Text(
                           'Forgot Password?',
                           style: TextStyle(
@@ -232,6 +232,29 @@ class _LoginScreenState extends State<LoginScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _openForgotPassword() async {
+    const uatForgotPasswordUrl =
+        'https://uatproductivity.vistaarfinance.com/auth/forgot-password';
+    const prodForgotPasswordUrl =
+        'https://productivity.vistaarfinance.com/auth/forgot-password';
+
+    final forgotPasswordUrl = Uri.parse(
+      ApiClient().isDevMode ? uatForgotPasswordUrl : prodForgotPasswordUrl,
+    );
+
+    try {
+      final opened = await launchUrl(
+        forgotPasswordUrl,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened) {
+        GlobalSnackbar.showError('Could not open the forgot password page');
+      }
+    } catch (_) {
+      GlobalSnackbar.showError('Could not open the forgot password page');
+    }
   }
 
   void callLoginApi() async {
@@ -302,7 +325,8 @@ class _LoginScreenState extends State<LoginScreen> {
       if (response['success']) {
         String serverVersion = response['version'];
         PackageInfo packageInfo = await PackageInfo.fromPlatform();
-        String currentVersion = packageInfo.version;
+        // String currentVersion = packageInfo.version;
+          String currentVersion = "2.8.1";
 
         print(
             "App version (Server):  $serverVersion, App version (Local): $currentVersion");

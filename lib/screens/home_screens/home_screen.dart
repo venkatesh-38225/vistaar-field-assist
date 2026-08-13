@@ -22,7 +22,7 @@ import 'package:re_kyc_mobile_app/screens/onboard_vcp_screens/completed_dsa_list
 import 'package:re_kyc_mobile_app/screens/onboard_vcp_screens/vcp_application.dart';
 import 'package:re_kyc_mobile_app/screens/onboard_vcp_screens/pending_dsa_list.dart';
 import 'package:re_kyc_mobile_app/screens/legal_billing/legal_billing_screen.dart';
-import 'package:re_kyc_mobile_app/screens/sarfaesi/sarfaesi.dart';
+import 'package:re_kyc_mobile_app/screens/sarfaesi/sarfaesi_modules_screen.dart';
 import 'package:re_kyc_mobile_app/service/api_client.dart';
 import 'package:re_kyc_mobile_app/service/hive_local_storage.dart';
 import 'package:re_kyc_mobile_app/utils/constant.dart';
@@ -93,10 +93,10 @@ class _HomeScreenState extends State<HomeScreen>
   bool isLegalNoticeMenuAvailable = false;
   bool isLegalBillingMenuAvailable = false;
   bool isSARFAESIMenuAvailable = false;
+  List<GetRoleBasedModule> sarfaesiModules = [];
   bool isLoading = false;
   String currentVersion = '';
   String legalBillingAccess = '';
-  String sarfaesiAccess = '';
   String legalNoticeAccess = '';
 
   @override
@@ -152,21 +152,19 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  void fetchMenuItems(List<String> modules) async {
+  void fetchMenuItems(List<String> modules) {
     // String employeeId = profileResponse?.data?.employeeId ?? '';
     // String branchCode = profileResponse?.data?.branchCode ?? '';
 
     // List<Map<String, dynamic>> fetchedCompletedMenuItems = [];
     // List<Map<String, dynamic>> fetchedPendingMenuItems = [];
 
-    print("Modules : $modules");
-    final normalizedModules = modules.map((e) => e.trim()).toList();
+    final normalizedModules =
+        modules.map((e) => e.trim().toUpperCase()).toList();
     isOnBoardingMenuAvailable = normalizedModules.contains("VCP");
-    isLegalNoticeMenuAvailable = normalizedModules.contains("Legal Notice");
-    isLegalBillingMenuAvailable = normalizedModules.contains("Legal Billing");
-    isSARFAESIMenuAvailable = normalizedModules.contains("SARFAESI 13(4)");
-
-    print("final Modules : $normalizedModules");
+    isLegalNoticeMenuAvailable = normalizedModules.contains("LEGAL NOTICE");
+    isLegalBillingMenuAvailable = normalizedModules.contains("LEGAL BILLING");
+    isSARFAESIMenuAvailable = sarfaesiModules.isNotEmpty;
   }
 
   List<SpeedDialChild> addDefaultSpeedDialMenu() {
@@ -334,11 +332,7 @@ class _HomeScreenState extends State<HomeScreen>
       body: Stack(
         children: [
           RefreshIndicator(
-            onRefresh: () async {
-              callProfileApi();
-              checkAppVersion();
-              // callOnboardCount();
-            },
+            onRefresh: _refreshHome,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(10),
@@ -534,12 +528,12 @@ class _HomeScreenState extends State<HomeScreen>
                   isSARFAESIMenuAvailable == true
                       ? menuButton(
                           assetPath: 'assets/icons/sarfaesi.png',
-                          label: "SARFAESI 13(4)",
+                          label: "SARFAESI",
                           onPressed: () {
                             if (profileResponse != null) {
-                              Get.to(() => SarfaesiScreen(
+                              Get.to(() => SarfaesiModulesScreen(
                                   profile: profileResponse!,
-                                  access: sarfaesiAccess));
+                                  modules: sarfaesiModules));
                             }
                           },
                           margin: const EdgeInsets.symmetric(
@@ -1580,12 +1574,19 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  void callProfileApi() async {
+  Future<void> _refreshHome() async {
+    await Future.wait([
+      callProfileApi(),
+      checkAppVersion(),
+    ]);
+  }
+
+  Future<void> callProfileApi() async {
     // var employeeId = '28871';
     // var id = employeeId;
 
     setState(() {
-      isLoading = false;
+      isLoading = true;
     });
 
     ProfileResponse? response =
@@ -1603,7 +1604,7 @@ class _HomeScreenState extends State<HomeScreen>
           vcpController.branchCode = profileResponse!.data!.branchCode;
         });
 
-        callGetRoleBasedModule(profileResponse?.data?.role ?? "");
+        await callGetRoleBasedModule(profileResponse?.data?.role ?? "");
       } else {
         if (ApiClient()?.isDevMode == false && employeeId == "54321") {
           profileResponse = ProfileResponse(
@@ -1628,7 +1629,7 @@ class _HomeScreenState extends State<HomeScreen>
           setState(() {
             isLoading = false;
           });
-          callGetRoleBasedModule(profileResponse?.data?.role ?? "");
+          await callGetRoleBasedModule(profileResponse?.data?.role ?? "");
         } else {
           GlobalSnackbar.showError(response.error ?? "Failed to fetch profile");
         }
@@ -1644,14 +1645,15 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  void checkAppVersion() async {
+  Future<void> checkAppVersion() async {
     String body = "VCP-OnBoarding";
     Map<String, dynamic>? response =
         await ApiClient().appVersionApi(json.encode(body));
     if (response != null && response['success']) {
       String serverVersion = response['version'];
       PackageInfo packageInfo = await PackageInfo.fromPlatform();
-      String currentVersion = packageInfo.version;
+      // String currentVersion = packageInfo.version;
+      String currentVersion = "2.8.1";
 
       print("Version check : ${serverVersion} ${currentVersion}");
       bool isVersionMismatch = false;
@@ -1680,7 +1682,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  void callGetRoleBasedModule(String role) async {
+  Future<void> callGetRoleBasedModule(String role) async {
     /* setState(() {
       isLoading = true;
     });*/
@@ -1691,16 +1693,19 @@ class _HomeScreenState extends State<HomeScreen>
     if (response != null) {
       if (response.modules.isNotEmpty) {
         legalBillingAccess = '';
-        sarfaesiAccess = '';
         legalNoticeAccess = '';
+        sarfaesiModules = response.modulesList.where((module) {
+          return (module.module ?? '')
+              .trim()
+              .toUpperCase()
+              .contains('SARFAESI');
+        }).toList();
         for (var m in response.modulesList) {
-          if (m.module?.trim() == "Legal Billing") {
+          final moduleName = m.module?.trim().toUpperCase();
+          if (moduleName == "LEGAL BILLING") {
             legalBillingAccess = m.access ?? '';
           }
-          if (m.module?.trim() == "SARFAESI 13(4)") {
-            sarfaesiAccess = m.access ?? '';
-          }
-          if (m.module?.trim() == "Legal Notice") {
+          if (moduleName == "LEGAL NOTICE") {
             legalNoticeAccess = m.access ?? '';
           }
         }
@@ -1708,10 +1713,12 @@ class _HomeScreenState extends State<HomeScreen>
       } else {
         GlobalSnackbar.showError(
             response.error ?? "Failed to fetch dashboard data");
+        sarfaesiModules = [];
         fetchMenuItems([]);
       }
     } else {
       GlobalSnackbar.showError("Something went wrong");
+      sarfaesiModules = [];
       fetchMenuItems([]);
     }
     setState(() {

@@ -31,10 +31,10 @@ class _SplashScreenState extends State<SplashScreen> {
         const platform = MethodChannel('com.example.app/media_scanner');
         final bool isDevModeEnabled =
             await platform.invokeMethod('isDeveloperModeEnabled') ?? false;
-        if (isDevModeEnabled) {
-          _showDeveloperModeAlert();
-          return; // Block execution
-        }
+        // if (isDevModeEnabled) {
+        //   _showDeveloperModeAlert();
+        //   return; // Block execution
+        // }
       } catch (e) {
         log("Error checking developer mode: $e");
       }

@@ -12,7 +12,7 @@ import 'package:re_kyc_mobile_app/screens/sarfaesi/sarfaesi.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize MediaStore before anything else
+  // ✅ Initialize MediaStore before anything else
   await MediaStore.ensureInitialized();
   MediaStore.appFolder = "Legal Notice";
 
