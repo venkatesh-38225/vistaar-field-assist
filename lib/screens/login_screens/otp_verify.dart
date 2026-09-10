@@ -1,19 +1,24 @@
+import 'dart:convert';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:re_kyc_mobile_app/screens/home_screens/home_screen.dart';
+import 'package:re_kyc_mobile_app/service/api_client.dart';
 import 'package:re_kyc_mobile_app/widgets/custom_textform_field.dart';
 
 import '../../utils/global_snackbar.dart';
 import '../../widgets/custom_background.dart';
 
 class OTPVerifyScreen extends StatefulWidget {
-  const OTPVerifyScreen(
-      {super.key, required this.otp, required this.employeeId});
+  const OTPVerifyScreen({
+    super.key,
+    required this.employeeId,
+    this.localReviewerOtp,
+  });
 
-  final String otp;
   final String employeeId;
+  final String? localReviewerOtp;
 
   @override
   State<OTPVerifyScreen> createState() => _OTPVerifyScreenState();
@@ -23,6 +28,84 @@ class _OTPVerifyScreenState extends State<OTPVerifyScreen> {
   final loginFormKey = GlobalKey<FormState>();
   final passwordVisible = true.obs;
   TextEditingController otpController = TextEditingController();
+  bool _isVerifying = false;
+  bool _isResending = false;
+
+  Future<void> _verifyOtp() async {
+    final enteredOtp = otpController.text.trim();
+    if (enteredOtp.isEmpty) {
+      GlobalSnackbar.showError('Please enter OTP');
+      return;
+    }
+    if (_isVerifying) return;
+
+    setState(() => _isVerifying = true);
+    try {
+      if (widget.localReviewerOtp != null) {
+        if (enteredOtp == widget.localReviewerOtp) {
+          Get.offAll(() => const HomeScreen());
+        } else {
+          GlobalSnackbar.showError('Invalid OTP');
+        }
+        return;
+      }
+
+      final response = await ApiClient().verifyLoginOtp(
+        json.encode({
+          'userId': widget.employeeId.trim(),
+          'otp': enteredOtp,
+          'source': 'Field Assist',
+        }),
+      );
+
+      if (!mounted) return;
+      if (response?['success'] == true) {
+        Get.offAll(() => const HomeScreen());
+      } else {
+        GlobalSnackbar.showError(
+          response?['message']?.toString() ?? 'Invalid OTP',
+        );
+      }
+    } catch (_) {
+      if (mounted) GlobalSnackbar.showError('Unable to verify OTP');
+    } finally {
+      if (mounted) setState(() => _isVerifying = false);
+    }
+  }
+
+  Future<void> _resendOtp() async {
+    if (_isResending) return;
+
+    if (widget.localReviewerOtp != null) {
+      GlobalSnackbar.showSuccess('Reviewer OTP is ready to use');
+      return;
+    }
+
+    setState(() => _isResending = true);
+    try {
+      final response = await ApiClient().sendLoginOtp(
+        json.encode({
+          'userId': widget.employeeId.trim(),
+          'source': 'Field Assist',
+        }),
+      );
+
+      if (!mounted) return;
+      if (response?['success'] == true) {
+        GlobalSnackbar.showSuccess(
+          response?['message']?.toString() ?? 'OTP resent successfully',
+        );
+      } else {
+        GlobalSnackbar.showError(
+          response?['message']?.toString() ?? 'Unable to resend OTP',
+        );
+      }
+    } catch (_) {
+      if (mounted) GlobalSnackbar.showError('Unable to resend OTP');
+    } finally {
+      if (mounted) setState(() => _isResending = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -138,18 +221,7 @@ class _OTPVerifyScreenState extends State<OTPVerifyScreen> {
                       ),
                       const SizedBox(height: 30),
                       GestureDetector(
-                        onTap: () {
-                          if (widget.otp == otpController.text) {
-                            Get.back();
-                            Get.offAll(() => const HomeScreen());
-                          } else {
-                            GlobalSnackbar.showError("Invalid OTP");
-                            // Get.snackbar("Failed", 'Invalid OTP',
-                            //     duration: const Duration(seconds: 3),
-                            //     backgroundColor: Colors.redAccent,
-                            //     colorText: Colors.white);
-                          }
-                        },
+                        onTap: _isVerifying ? null : _verifyOtp,
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 300),
                           width: double.infinity,
@@ -173,22 +245,31 @@ class _OTPVerifyScreenState extends State<OTPVerifyScreen> {
                               ),
                             ],
                           ),
-                          child: const Text(
-                            'Verify',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
+                          child: _isVerifying
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Verify',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
                         ),
                       ),
                       const SizedBox(height: 20),
                       TextButton(
-                        onPressed: () {},
-                        child: const Text(
-                          'Re-Send OTP',
-                          style: TextStyle(
+                        onPressed: _isResending ? null : _resendOtp,
+                        child: Text(
+                          _isResending ? 'Sending...' : 'Re-Send OTP',
+                          style: const TextStyle(
                             color: Colors.white70,
                             //  color: Color(0xFF116bb6),
                             fontSize: 16,

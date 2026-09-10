@@ -52,11 +52,17 @@ class PhysicalFilingCase {
     required this.id,
     required this.caseId,
     required this.lan,
+    this.branchCode,
+    this.branchName,
+    this.region,
+    this.zone,
+    this.megaZone,
     required this.status,
     required this.dashboardStatus,
     required this.dispatchDate,
     required this.podNumber,
     required this.courierName,
+    required this.documentTransmissionType,
     required this.advocateId,
     required this.advocateName,
     required this.advocateAssignmentDate,
@@ -66,6 +72,25 @@ class PhysicalFilingCase {
     required this.eFilingCaseNumber,
     required this.physicalFilingDate,
     required this.physicalFilingCaseNumber,
+    this.withdrawalReason,
+    this.withdrawalRemarks,
+    this.withdrawalStatus,
+    this.withdrawalRequestedBy,
+    this.withdrawalRequestedDt,
+    this.withdrawalReviewedBy,
+    this.withdrawalReviewedDt,
+    this.withdrawalReviewRemarks,
+    this.isDirectWithdrawal,
+    this.documentReturnStatus,
+    this.documentReturnPODNumber,
+    this.documentReturnDispatchDate,
+    this.documentReturnCourierName,
+    this.documentReturnRemarks,
+    this.documentReturnRequestedBy,
+    this.documentReturnRequestedDt,
+    this.documentReturnCompletedBy,
+    this.documentReturnCompletedDt,
+    this.requiresPhysicalDocuments,
     required this.createdBy,
     required this.createdDt,
     required this.updatedBy,
@@ -77,11 +102,17 @@ class PhysicalFilingCase {
   final int id;
   final int caseId;
   final String lan;
+  final String? branchCode;
+  final String? branchName;
+  final String? region;
+  final String? zone;
+  final String? megaZone;
   final String status;
   final String dashboardStatus;
   final DateTime? dispatchDate;
   final String podNumber;
   final String courierName;
+  final String? documentTransmissionType;
   final int advocateId;
   final String advocateName;
   final DateTime? advocateAssignmentDate;
@@ -91,12 +122,67 @@ class PhysicalFilingCase {
   final String eFilingCaseNumber;
   final DateTime? physicalFilingDate;
   final String physicalFilingCaseNumber;
+  final String? withdrawalReason;
+  final String? withdrawalRemarks;
+  final String? withdrawalStatus;
+  final String? withdrawalRequestedBy;
+  final DateTime? withdrawalRequestedDt;
+  final String? withdrawalReviewedBy;
+  final DateTime? withdrawalReviewedDt;
+  final String? withdrawalReviewRemarks;
+  final bool? isDirectWithdrawal;
+  final String? documentReturnStatus;
+  final String? documentReturnPODNumber;
+  final DateTime? documentReturnDispatchDate;
+  final String? documentReturnCourierName;
+  final String? documentReturnRemarks;
+  final String? documentReturnRequestedBy;
+  final DateTime? documentReturnRequestedDt;
+  final String? documentReturnCompletedBy;
+  final DateTime? documentReturnCompletedDt;
+  final bool? requiresPhysicalDocuments;
   final String createdBy;
   final DateTime? createdDt;
   final String updatedBy;
   final DateTime? updatedDt;
   final List<PhysicalFilingChecklistItem> checklist;
   final List<PhysicalFilingLog> logs;
+
+  bool get hasWithdrawalDetails =>
+      (withdrawalStatus != null && withdrawalStatus!.trim().isNotEmpty) ||
+      (withdrawalReason != null && withdrawalReason!.trim().isNotEmpty) ||
+      (withdrawalRemarks != null && withdrawalRemarks!.trim().isNotEmpty) ||
+      (withdrawalRequestedBy != null &&
+          withdrawalRequestedBy!.trim().isNotEmpty) ||
+      (withdrawalReviewedBy != null &&
+          withdrawalReviewedBy!.trim().isNotEmpty);
+
+  bool get hasDocumentReturnDetails =>
+      (documentReturnStatus != null &&
+          documentReturnStatus!.trim().isNotEmpty) ||
+      (documentReturnPODNumber != null &&
+          documentReturnPODNumber!.trim().isNotEmpty) ||
+      (documentReturnCourierName != null &&
+          documentReturnCourierName!.trim().isNotEmpty) ||
+      (documentReturnRemarks != null &&
+          documentReturnRemarks!.trim().isNotEmpty) ||
+      (documentReturnRequestedBy != null &&
+          documentReturnRequestedBy!.trim().isNotEmpty) ||
+      (documentReturnCompletedBy != null &&
+          documentReturnCompletedBy!.trim().isNotEmpty);
+
+  bool get hasAdvocateDetails =>
+      advocateId > 0 ||
+      advocateName.trim().isNotEmpty ||
+      advocateAssignmentDate != null;
+
+  bool get hasFilingDetails =>
+      filingType.trim().isNotEmpty ||
+      courtName.trim().isNotEmpty ||
+      eFilingDate != null ||
+      eFilingCaseNumber.trim().isNotEmpty ||
+      physicalFilingDate != null ||
+      physicalFilingCaseNumber.trim().isNotEmpty;
 
   factory PhysicalFilingCase.fromJson(Map<String, dynamic> json) {
     final rawChecklist = json['checklist'];
@@ -107,11 +193,17 @@ class PhysicalFilingCase {
       id: id,
       caseId: (json['caseId'] as num?)?.toInt() ?? id,
       lan: json['lan']?.toString() ?? '',
+      branchCode: json['branchCode']?.toString(),
+      branchName: json['branchName']?.toString(),
+      region: json['region']?.toString(),
+      zone: json['zone']?.toString(),
+      megaZone: json['megaZone']?.toString(),
       status: json['status']?.toString() ?? '',
       dashboardStatus: json['dashboardStatus']?.toString() ?? '',
       dispatchDate: DateTime.tryParse(json['dispatchDate']?.toString() ?? ''),
       podNumber: json['podNumber']?.toString() ?? '',
       courierName: json['courierName']?.toString() ?? '',
+      documentTransmissionType: json['documentTransmissionType']?.toString(),
       advocateId: (json['advocateId'] as num?)?.toInt() ?? 0,
       advocateName: json['advocateName']?.toString() ?? '',
       advocateAssignmentDate: DateTime.tryParse(
@@ -126,6 +218,36 @@ class PhysicalFilingCase {
       ),
       physicalFilingCaseNumber:
           json['physicalFilingCaseNumber']?.toString() ?? '',
+      withdrawalReason: json['withdrawalReason']?.toString(),
+      withdrawalRemarks: json['withdrawalRemarks']?.toString(),
+      withdrawalStatus: json['withdrawalStatus']?.toString(),
+      withdrawalRequestedBy: json['withdrawalRequestedBy']?.toString(),
+      withdrawalRequestedDt: DateTime.tryParse(
+        json['withdrawalRequestedDt']?.toString() ?? '',
+      ),
+      withdrawalReviewedBy: json['withdrawalReviewedBy']?.toString(),
+      withdrawalReviewedDt: DateTime.tryParse(
+        json['withdrawalReviewedDt']?.toString() ?? '',
+      ),
+      withdrawalReviewRemarks: json['withdrawalReviewRemarks']?.toString(),
+      isDirectWithdrawal: json['isDirectWithdrawal'] as bool?,
+      documentReturnStatus: json['documentReturnStatus']?.toString(),
+      documentReturnPODNumber: json['documentReturnPODNumber']?.toString(),
+      documentReturnDispatchDate: DateTime.tryParse(
+        json['documentReturnDispatchDate']?.toString() ?? '',
+      ),
+      documentReturnCourierName: json['documentReturnCourierName']?.toString(),
+      documentReturnRemarks: json['documentReturnRemarks']?.toString(),
+      documentReturnRequestedBy: json['documentReturnRequestedBy']?.toString(),
+      documentReturnRequestedDt: DateTime.tryParse(
+        json['documentReturnRequestedDt']?.toString() ?? '',
+      ),
+      documentReturnCompletedBy:
+          json['documentReturnCompletedBy']?.toString(),
+      documentReturnCompletedDt: DateTime.tryParse(
+        json['documentReturnCompletedDt']?.toString() ?? '',
+      ),
+      requiresPhysicalDocuments: json['requiresPhysicalDocuments'] as bool?,
       createdBy: json['createdBy']?.toString() ?? '',
       createdDt: DateTime.tryParse(json['createdDt']?.toString() ?? ''),
       updatedBy: json['updatedBy']?.toString() ?? '',
@@ -188,7 +310,9 @@ class PhysicalFilingChecklistItem {
     required this.fieldReceived,
     required this.legalComments,
     required this.fieldComments,
+    this.identificationNumber,
     required this.hasDiscrepancy,
+    this.isMandatory = false,
   });
 
   final int id;
@@ -199,7 +323,9 @@ class PhysicalFilingChecklistItem {
   final bool? fieldReceived;
   final String? legalComments;
   final String? fieldComments;
+  final String? identificationNumber;
   final bool hasDiscrepancy;
+  final bool isMandatory;
 
   factory PhysicalFilingChecklistItem.fromJson(Map<String, dynamic> json) {
     return PhysicalFilingChecklistItem(
@@ -211,7 +337,9 @@ class PhysicalFilingChecklistItem {
       fieldReceived: json['fieldReceived'] as bool?,
       legalComments: json['legalComments']?.toString(),
       fieldComments: json['fieldComments']?.toString(),
+      identificationNumber: json['identificationNumber']?.toString(),
       hasDiscrepancy: json['hasDiscrepancy'] == true,
+      isMandatory: json['isMandatory'] == true,
     );
   }
 }

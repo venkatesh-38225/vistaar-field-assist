@@ -34,6 +34,14 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen> {
   bool _isSubmitting = false;
   bool _showAdvocateError = false;
   bool _showDateError = false;
+  String? _physicalDocumentsRequired;
+
+  bool get _showPhysicalDocumentsRequiredField {
+    final transmissionType =
+        _details?.documentTransmissionType?.trim().toLowerCase() ?? '';
+    return transmissionType == 'scanned copy';
+    // return true;
+  }
 
   @override
   void initState() {
@@ -115,6 +123,14 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen> {
       GlobalSnackbar.showError('Please select advocate and assignment date');
       return;
     }
+
+    // Validate physical documents required field if it's shown
+    if (_showPhysicalDocumentsRequiredField && 
+        (_physicalDocumentsRequired == null || _physicalDocumentsRequired!.trim().isEmpty)) {
+      GlobalSnackbar.showError('Please select physical documents required option');
+      return;
+    }
+
     if (details == null || details.caseId == 0) {
       GlobalSnackbar.showError('Case ID is unavailable');
       return;
@@ -148,7 +164,7 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen> {
     );
     if (confirmed != true || !mounted) return;
 
-    final assignmentDateUtc = DateTime.utc(
+    final assignmentDateForApi = DateTime(
       assignmentDate.year,
       assignmentDate.month,
       assignmentDate.day,
@@ -156,7 +172,7 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen> {
     final payload = <String, dynamic>{
       'caseId': details.caseId,
       'advocateId': advocate.id,
-      'assignmentDate': assignmentDateUtc.toIso8601String(),
+      'assignmentDate': assignmentDateForApi.toIso8601String(),
       'updatedBy': updatedBy,
     };
 
@@ -165,6 +181,34 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen> {
       final response = await ApiClient().assignPhysicalFilingAdvocate(payload);
       if (!mounted) return;
       if (response?['success'] == true) {
+        // If document transmission type is "Scanned Copy", call physical document requirement API
+        if (_showPhysicalDocumentsRequiredField) {
+          final requiresPhysicalDocuments = _physicalDocumentsRequired == 'Yes';
+          final documentRequirementPayload = <String, dynamic>{
+            'caseId': details.caseId,
+            'requiresPhysicalDocuments': requiresPhysicalDocuments,
+            'updatedBy': updatedBy,
+          };
+          print("Submitting physical document requirement payload: $documentRequirementPayload");
+          try {
+            final docResponse = await ApiClient()
+                .submitPhysicalDocumentRequirement(documentRequirementPayload);
+            if (!mounted) return;
+            if (docResponse?['success'] != true) {
+              GlobalSnackbar.showError(
+                docResponse?['message']?.toString() ??
+                    'Physical document requirement API response unclear',
+              );
+            }
+          } catch (_) {
+            if (mounted) {
+              GlobalSnackbar.showError(
+                'Physical document requirement submission failed, but advocate assigned',
+              );
+            }
+          }
+        }
+
         GlobalSnackbar.showSuccess(
           response?['message']?.toString() ?? 'Advocate assigned successfully',
         );
@@ -266,6 +310,24 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen> {
           children: [
             _buildCaseDetailsCard(_details!),
             const SizedBox(height: 18),
+             if (_showPhysicalDocumentsRequiredField) ...[
+              _buildLabel('Physical Documents Required? *'),
+              DropdownButtonFormField<String>(
+                value: _physicalDocumentsRequired,
+                isExpanded: true,
+                decoration: _inputDecoration('Select required option'),
+                items: const [
+                  DropdownMenuItem(value: 'Yes', child: Text('Yes')),
+                  DropdownMenuItem(value: 'No', child: Text('No')),
+                ],
+                validator: (value) =>
+                    value == null || value.trim().isEmpty
+                        ? 'Please select an option'
+                        : null,
+                onChanged: (value) => setState(() => _physicalDocumentsRequired = value),
+              ),
+              const SizedBox(height: 16),
+            ],
             const CustomText(
               text: 'Advocate Assignment',
               fontSize: 17,
@@ -273,6 +335,7 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen> {
               color: Color(0xFF102F54),
             ),
             const SizedBox(height: 14),
+           
             _buildLabel('Select Advocate *'),
             _buildAdvocateSelector(),
             if (_showAdvocateError) _buildError('Please select an advocate'),
@@ -372,6 +435,13 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen> {
                   Icons.local_shipping_outlined,
                   'Courier Name',
                   details.courierName,
+                ),
+                _detailRow(
+                  Icons.description_outlined,
+                  'Transmission Mode',
+                  (details.documentTransmissionType?.trim().isNotEmpty ?? false)
+                      ? details.documentTransmissionType!
+                      : 'N/A',
                   showDivider: false,
                 ),
               ],
@@ -426,6 +496,27 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen> {
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: Colors.black87,
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: BorderSide(color: Colors.grey.shade400),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: BorderSide(color: Colors.grey.shade400),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(6),
+        borderSide: const BorderSide(color: Constant.mediumBlueColor),
       ),
     );
   }

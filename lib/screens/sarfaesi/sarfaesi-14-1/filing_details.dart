@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:re_kyc_mobile_app/models/physical_filing_response.dart';
+import 'package:re_kyc_mobile_app/models/legal_masters.dart';
 import 'package:re_kyc_mobile_app/service/api_client.dart';
 import 'package:re_kyc_mobile_app/utils/constant.dart';
 import 'package:re_kyc_mobile_app/utils/global_snackbar.dart';
@@ -34,11 +35,15 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
   final _physicalFilingCaseNumberController = TextEditingController();
 
   PhysicalFilingCase? _details;
+  List<Court> _courts = [];
+  Court? _selectedCourt;
   String? _filingType;
   DateTime? _eFilingDate;
   DateTime? _physicalFilingDate;
   String? _errorMessage;
   bool _isLoading = false;
+  bool _isLoadingCourts = false;
+  String? _courtsErrorMessage;
   bool _isSubmitting = false;
 
   bool get _isEFiling => _filingType == 'E-Filing';
@@ -47,6 +52,7 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
   void initState() {
     super.initState();
     _loadDetails();
+    _loadCourts();
   }
 
   @override
@@ -89,6 +95,28 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
     }
   }
 
+  Future<void> _loadCourts() async {
+    setState(() {
+      _isLoadingCourts = true;
+      _courtsErrorMessage = null;
+    });
+    try {
+      final courts = await ApiClient().getActiveCourts();
+      if (!mounted) return;
+      setState(() {
+        _courts = courts ?? [];
+        if (courts == null) {
+          _courtsErrorMessage = 'Unable to load courts. Please try again.';
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _courtsErrorMessage = 'Unable to load courts. Please try again.');
+    } finally {
+      if (mounted) setState(() => _isLoadingCourts = false);
+    }
+  }
+
   void _changeFilingType(String? value) {
     setState(() {
       _filingType = value;
@@ -127,7 +155,7 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
   }
 
   String _toApiDate(DateTime date) {
-    return DateTime.utc(date.year, date.month, date.day).toIso8601String();
+    return DateTime(date.year, date.month, date.day).toIso8601String();
   }
 
   Future<void> _submit() async {
@@ -181,7 +209,7 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
     final payload = <String, dynamic>{
       'caseId': details.caseId,
       'filingType': filingType,
-      'courtName': _courtNameController.text.trim(),
+      'courtName': _selectedCourt!.courtName,
       if (_isEFiling) ...{
         'eFilingDate': _toApiDate(_eFilingDate!),
         'eFilingCaseNumber': _eFilingCaseNumberController.text.trim(),
@@ -328,12 +356,7 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
               ),
               const SizedBox(height: 16),
               _buildLabel('Court Name *'),
-              TextFormField(
-                controller: _courtNameController,
-                textCapitalization: TextCapitalization.words,
-                decoration: _inputDecoration('Enter Court Name'),
-                validator: _requiredValidator('Court name'),
-              ),
+              _buildCourtAutocomplete(),
               if (_isEFiling) ...[
                 const SizedBox(height: 20),
                 _buildSectionHeader('E-Filing Details'),
@@ -471,6 +494,89 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildCourtAutocomplete() {
+    if (_isLoadingCourts) {
+      return const SizedBox(
+        height: 48,
+        child: Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Constant.lightBlueColor,
+          ),
+        ),
+      );
+    }
+
+    if (_courtsErrorMessage != null) {
+      return Row(
+        children: [
+          Expanded(
+            child: Text(
+              _courtsErrorMessage!,
+              style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+            ),
+          ),
+          TextButton(onPressed: _loadCourts, child: const Text('Retry')),
+        ],
+      );
+    }
+
+    return Autocomplete<Court>(
+      displayStringForOption: (court) => court.courtName,
+      optionsBuilder: (textEditingValue) {
+        final query = textEditingValue.text.trim().toLowerCase();
+        if (query.isEmpty) return _courts;
+        return _courts.where(
+          (court) => court.courtName.toLowerCase().contains(query),
+        );
+      },
+      onSelected: (court) {
+        setState(() => _selectedCourt = court);
+      },
+      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+        return TextFormField(
+          controller: controller,
+          focusNode: focusNode,
+          textCapitalization: TextCapitalization.words,
+          decoration: _inputDecoration('Search and select court name').copyWith(
+            suffixIcon: const Icon(Icons.arrow_drop_down, color: Constant.mediumBlueColor),
+          ),
+          onChanged: (value) {
+            if (_selectedCourt?.courtName != value) {
+              _selectedCourt = null;
+            }
+          },
+          validator: (_) => _selectedCourt == null
+              ? 'Please select a court name from the list'
+              : null,
+        );
+      },
+      optionsViewBuilder: (context, onSelected, options) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 220, maxWidth: 500),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: options.length,
+                itemBuilder: (context, index) {
+                  final court = options.elementAt(index);
+                  return ListTile(
+                    title: Text(court.courtName),
+                    onTap: () => onSelected(court),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 

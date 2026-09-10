@@ -274,36 +274,220 @@ class _PhysicalFilingDetailsScreenState
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 28),
         children: [
           _buildCaseCard(details),
+          if (details.hasWithdrawalDetails) ...[
+            const SizedBox(height: 14),
+            _buildWithdrawalCard(details),
+          ],
+          if (details.hasDocumentReturnDetails) ...[
+            const SizedBox(height: 14),
+            _buildDocumentReturnCard(details),
+          ],
+          if (details.hasAdvocateDetails) ...[
+            const SizedBox(height: 14),
+            _buildAdvocateCard(details),
+          ],
+          if (details.hasFilingDetails) ...[
+            const SizedBox(height: 14),
+            _buildFilingCard(details),
+          ],
           const SizedBox(height: 14),
           _buildChecklistSection(details),
           const SizedBox(height: 14),
-          _buildAdvocateCard(details),
-          const SizedBox(height: 14),
-          _buildFilingCard(details),
-          // const SizedBox(height: 14),
-          // _buildAuditCard(details),
+          _buildAuditCard(details),
         ],
       ),
     );
   }
 
+  Widget _buildWithdrawalCard(PhysicalFilingCase details) {
+    final rows = <Widget>[];
+
+    if (details.withdrawalStatus?.trim().isNotEmpty == true) {
+      rows.add(_detailRow(
+        Icons.info_outline,
+        'Withdrawal Status',
+        details.withdrawalStatus!,
+        valueWidget: _buildStatusBadge(details.withdrawalStatus!),
+      ));
+    }
+
+    if (details.withdrawalReason?.trim().isNotEmpty == true) {
+      rows.add(_detailRow(
+        Icons.assignment_late_outlined,
+        'Reason',
+        details.withdrawalReason!,
+      ));
+    }
+
+    if (details.withdrawalRemarks?.trim().isNotEmpty == true) {
+      rows.add(_detailRow(
+        Icons.comment_outlined,
+        'Remarks',
+        details.withdrawalRemarks!,
+      ));
+    }
+
+    if (details.isDirectWithdrawal != null) {
+      rows.add(_detailRow(
+        Icons.swap_horiz_outlined,
+        'Direct Withdrawal',
+        details.isDirectWithdrawal! ? 'Yes' : 'No',
+      ));
+    }
+
+    if (details.withdrawalRequestedBy?.trim().isNotEmpty == true) {
+      rows.add(_detailRow(
+        Icons.person_outline,
+        'Requested By',
+        details.withdrawalRequestedBy!,
+      ));
+    }
+
+    if (details.withdrawalRequestedDt != null) {
+      rows.add(_detailRow(
+        Icons.schedule_outlined,
+        'Requested Date',
+        _formatDateTime(details.withdrawalRequestedDt),
+      ));
+    }
+
+    if (details.withdrawalReviewedBy?.trim().isNotEmpty == true) {
+      rows.add(_detailRow(
+        Icons.how_to_reg_outlined,
+        'Reviewed By',
+        details.withdrawalReviewedBy!,
+      ));
+    }
+
+    if (details.withdrawalReviewedDt != null) {
+      rows.add(_detailRow(
+        Icons.event_available_outlined,
+        'Reviewed Date',
+        _formatDateTime(details.withdrawalReviewedDt),
+      ));
+    }
+
+    if (details.withdrawalReviewRemarks?.trim().isNotEmpty == true) {
+      rows.add(_detailRow(
+        Icons.rate_review_outlined,
+        'Review Remarks',
+        details.withdrawalReviewRemarks!,
+      ));
+    }
+
+    return _buildSectionCard(
+      icon: Icons.undo_outlined,
+      title: 'Withdrawal Details',
+      children: _withDividers(rows),
+    );
+  }
+
+  Widget _buildDocumentReturnCard(PhysicalFilingCase details) {
+    final rows = <Widget>[];
+
+    if (details.documentReturnStatus?.trim().isNotEmpty == true) {
+      rows.add(_detailRow(
+        Icons.info_outline,
+        'Return Status',
+        details.documentReturnStatus!,
+        valueWidget: _buildStatusBadge(details.documentReturnStatus!),
+      ));
+    }
+
+    if (details.documentReturnCourierName?.trim().isNotEmpty == true) {
+      rows.add(_detailRow(
+        Icons.local_shipping_outlined,
+        'Courier Name',
+        details.documentReturnCourierName!,
+      ));
+    }
+
+    if (details.documentReturnPODNumber?.trim().isNotEmpty == true) {
+      rows.add(_detailRow(
+        Icons.confirmation_number_outlined,
+        'Return POD No.',
+        details.documentReturnPODNumber!,
+      ));
+    }
+
+    if (details.documentReturnDispatchDate != null) {
+      rows.add(_detailRow(
+        Icons.calendar_today_outlined,
+        'Dispatch Date',
+        _formatDate(details.documentReturnDispatchDate),
+      ));
+    }
+
+    if (details.documentReturnRemarks?.trim().isNotEmpty == true) {
+      rows.add(_detailRow(
+        Icons.comment_outlined,
+        'Return Remarks',
+        details.documentReturnRemarks!,
+      ));
+    }
+
+    if (details.documentReturnRequestedBy?.trim().isNotEmpty == true) {
+      rows.add(_detailRow(
+        Icons.person_outline,
+        'Requested By',
+        details.documentReturnRequestedBy!,
+      ));
+    }
+
+    if (details.documentReturnRequestedDt != null) {
+      rows.add(_detailRow(
+        Icons.schedule_outlined,
+        'Requested Date',
+        _formatDateTime(details.documentReturnRequestedDt),
+      ));
+    }
+
+    if (details.documentReturnCompletedBy?.trim().isNotEmpty == true) {
+      rows.add(_detailRow(
+        Icons.verified_user_outlined,
+        'Completed By',
+        details.documentReturnCompletedBy!,
+      ));
+    }
+
+    if (details.documentReturnCompletedDt != null) {
+      rows.add(_detailRow(
+        Icons.event_available_outlined,
+        'Completed Date',
+        _formatDateTime(details.documentReturnCompletedDt),
+      ));
+    }
+
+    return _buildSectionCard(
+      icon: Icons.assignment_return_outlined,
+      title: 'Document Return Details',
+      children: _withDividers(rows),
+    );
+  }
+
   Widget _buildAdvocateCard(PhysicalFilingCase details) {
+    final rows = <Widget>[];
+
+    if (details.advocateName.trim().isNotEmpty) {
+      rows.add(_detailRow(
+        Icons.person_outline,
+        'Advocate Name',
+        details.advocateName,
+      ));
+    }
+
+    if (details.advocateAssignmentDate != null) {
+      rows.add(_detailRow(
+        Icons.calendar_today_outlined,
+        'Assigned On',
+        _formatDate(details.advocateAssignmentDate),
+      ));
+    }
+
     return _buildSectionCard(
       icon: Icons.person_pin_outlined,
       title: 'Assigned Advocate',
-      children: [
-        _detailRow(
-          Icons.person_outline,
-          'Advocate Name',
-          _valueOrNA(details.advocateName),
-        ),
-        _detailRow(
-          Icons.calendar_today_outlined,
-          'Assigned On',
-          _formatDate(details.advocateAssignmentDate),
-          showDivider: false,
-        ),
-      ],
+      children: _withDividers(rows),
     );
   }
 
@@ -316,50 +500,57 @@ class _PhysicalFilingDetailsScreenState
             details.physicalFilingDate != null ||
             details.physicalFilingCaseNumber.trim().isNotEmpty;
 
-    return _buildSectionCard(
-      icon: Icons.account_balance_outlined,
-      title: 'Filing Information',
-      children: [
+    final rows = <Widget>[
+      if (details.filingType.trim().isNotEmpty)
         _detailRow(
           Icons.description_outlined,
           'Filing Type',
-          _valueOrNA(details.filingType),
+          details.filingType,
         ),
+      if (details.documentTransmissionType?.trim().isNotEmpty == true)
+        _detailRow(
+          Icons.local_shipping_outlined,
+          'Transmission Mode',
+          details.documentTransmissionType!,
+        ),
+      if (details.courtName.trim().isNotEmpty)
         _detailRow(
           Icons.location_city_outlined,
           'Court Name',
-          _valueOrNA(details.courtName),
-          showDivider: showEFiling || showPhysicalFiling,
+          details.courtName,
         ),
-        if (showEFiling) ...[
-          _subsectionLabel('E-Filing Details'),
-          _detailRow(
-            Icons.event_outlined,
-            'E-Filing Date',
-            _formatDate(details.eFilingDate),
-          ),
-          _detailRow(
-            Icons.numbers_outlined,
-            'E-Filing Case No.',
-            _valueOrNA(details.eFilingCaseNumber),
-            showDivider: showPhysicalFiling,
-          ),
-        ],
-        if (showPhysicalFiling) ...[
-          _subsectionLabel('Physical Filing Details'),
-          _detailRow(
-            Icons.event_available_outlined,
-            'Physical Date',
-            _formatDate(details.physicalFilingDate),
-          ),
-          _detailRow(
-            Icons.confirmation_number_outlined,
-            'Physical Case No.',
-            _valueOrNA(details.physicalFilingCaseNumber),
-            showDivider: false,
-          ),
-        ],
+      if (showEFiling) ...[
+        _subsectionLabel('E-Filing Details'),
+        _detailRow(
+          Icons.event_outlined,
+          'E-Filing Date',
+          _formatDate(details.eFilingDate),
+        ),
+        _detailRow(
+          Icons.numbers_outlined,
+          'E-Filing Case No.',
+          _valueOrNA(details.eFilingCaseNumber),
+        ),
       ],
+      if (showPhysicalFiling) ...[
+        _subsectionLabel('Physical Filing Details'),
+        _detailRow(
+          Icons.event_available_outlined,
+          'Physical Date',
+          _formatDate(details.physicalFilingDate),
+        ),
+        _detailRow(
+          Icons.confirmation_number_outlined,
+          'Physical Case No.',
+          _valueOrNA(details.physicalFilingCaseNumber),
+        ),
+      ],
+    ];
+
+    return _buildSectionCard(
+      icon: Icons.account_balance_outlined,
+      title: 'Filing Information',
+      children: _withDividers(rows),
     );
   }
 
@@ -367,7 +558,7 @@ class _PhysicalFilingDetailsScreenState
     return _buildSectionCard(
       icon: Icons.history_outlined,
       title: 'Audit Information',
-      children: [
+      children: _withDividers([
         _detailRow(
           Icons.person_add_alt_outlined,
           'Created By',
@@ -387,9 +578,8 @@ class _PhysicalFilingDetailsScreenState
           Icons.update_outlined,
           'Updated On',
           _formatDateTime(details.updatedDt),
-          showDivider: false,
         ),
-      ],
+      ]),
     );
   }
 
@@ -441,7 +631,7 @@ class _PhysicalFilingDetailsScreenState
 
   Widget _subsectionLabel(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 4, top: 4),
       child: Align(
         alignment: Alignment.centerLeft,
         child: Container(
@@ -513,6 +703,62 @@ class _PhysicalFilingDetailsScreenState
         ? 'N/A'
         : DateFormat('dd-MMM-yyyy').format(details.dispatchDate!);
 
+    final branchName = details.branchName?.trim() ?? '';
+    final branchCode = details.branchCode?.trim() ?? '';
+    final branch = [
+      if (branchName.isNotEmpty) branchName,
+      if (branchCode.isNotEmpty) '($branchCode)',
+    ].join(' ');
+
+    final zoneParts = [
+      if (details.region?.trim().isNotEmpty == true) details.region!.trim(),
+      if (details.zone?.trim().isNotEmpty == true) details.zone!.trim(),
+      if (details.megaZone?.trim().isNotEmpty == true) details.megaZone!.trim(),
+    ];
+    final zoneInfo = zoneParts.join(' / ');
+
+    final caseRows = <Widget>[
+      _detailRow(
+        Icons.info_outline,
+        'Status',
+        details.status,
+        valueWidget: _buildStatusBadge(details.status),
+      ),
+      if (branch.isNotEmpty)
+        _detailRow(
+          Icons.storefront_outlined,
+          'Branch',
+          branch,
+        ),
+      if (zoneInfo.isNotEmpty)
+        _detailRow(
+          Icons.map_outlined,
+          'Region / Zone',
+          zoneInfo,
+        ),
+      if (details.documentTransmissionType?.trim().isNotEmpty == true)
+        _detailRow(
+          Icons.local_shipping_outlined,
+          'Transmission Mode',
+          details.documentTransmissionType!,
+        ),
+      _detailRow(
+        Icons.calendar_today_outlined,
+        'Dispatch Date',
+        dispatchDate,
+      ),
+      _detailRow(
+        Icons.confirmation_number_outlined,
+        'POD Number',
+        _valueOrNA(details.podNumber),
+      ),
+      _detailRow(
+        Icons.local_shipping_outlined,
+        'Courier Name',
+        _valueOrNA(details.courierName),
+      ),
+    ];
+
     return Card(
       elevation: 2,
       margin: EdgeInsets.zero,
@@ -549,25 +795,7 @@ class _PhysicalFilingDetailsScreenState
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
-              children: [
-                _detailRow(Icons.info_outline, 'Status', details.status),
-                _detailRow(
-                  Icons.calendar_today_outlined,
-                  'Dispatch Date',
-                  dispatchDate,
-                ),
-                _detailRow(
-                  Icons.confirmation_number_outlined,
-                  'POD Number',
-                  _valueOrNA(details.podNumber),
-                ),
-                _detailRow(
-                  Icons.local_shipping_outlined,
-                  'Courier Name',
-                  _valueOrNA(details.courierName),
-                  showDivider: false,
-                ),
-              ],
+              children: _withDividers(caseRows),
             ),
           ),
         ],
@@ -579,36 +807,101 @@ class _PhysicalFilingDetailsScreenState
     IconData icon,
     String label,
     String value, {
-    bool showDivider = true,
+    Widget? valueWidget,
   }) {
-    return Column(
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 18, color: Constant.lightBlueColor),
-            const SizedBox(width: 9),
-            SizedBox(
-              width: 120,
-              child: CustomText(
-                text: label,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: Colors.black54,
-              ),
-            ),
-            Expanded(
-              child: CustomText(
+        Icon(icon, size: 18, color: Constant.lightBlueColor),
+        const SizedBox(width: 9),
+        SizedBox(
+          width: 140,
+          child: CustomText(
+            text: label,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: Colors.black54,
+          ),
+        ),
+        Expanded(
+          child: valueWidget ??
+              CustomText(
                 text: _valueOrNA(value),
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: Colors.black87,
               ),
-            ),
-          ],
         ),
-        if (showDivider) const Divider(height: 20),
       ],
+    );
+  }
+
+  List<Widget> _withDividers(List<Widget> items) {
+    final result = <Widget>[];
+    for (var i = 0; i < items.length; i++) {
+      result.add(items[i]);
+      if (i != items.length - 1) {
+        result.add(const Divider(height: 20));
+      }
+    }
+    return result;
+  }
+
+  Widget _buildStatusBadge(String status, {Color? defaultColor}) {
+    final s = status.trim();
+    if (s.isEmpty) {
+      return const CustomText(
+        text: 'N/A',
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: Colors.black87,
+      );
+    }
+    Color bg;
+    Color fg;
+    final lower = s.toLowerCase();
+    if (lower.contains('approved') ||
+        lower.contains('completed') ||
+        lower.contains('accepted') ||
+        lower == 'yes') {
+      bg = Colors.green.withValues(alpha: 0.12);
+      fg = Colors.green.shade700;
+    } else if (lower.contains('pending') ||
+        lower.contains('initiated') ||
+        lower.contains('requested') ||
+        lower.contains('in progress')) {
+      bg = Colors.orange.withValues(alpha: 0.12);
+      fg = Colors.orange.shade800;
+    } else if (lower.contains('reject') ||
+        lower.contains('dismiss') ||
+        lower.contains('cancelled') ||
+        lower == 'no') {
+      bg = Colors.red.withValues(alpha: 0.12);
+      fg = Colors.red.shade700;
+    } else if (lower.contains('dispatched')) {
+      bg = Constant.mediumBlueColor.withValues(alpha: 0.12);
+      fg = Constant.mediumBlueColor;
+    } else {
+      bg = (defaultColor ?? Constant.mediumBlueColor).withValues(alpha: 0.12);
+      fg = defaultColor ?? Constant.mediumBlueColor;
+    }
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: fg.withValues(alpha: 0.3)),
+        ),
+        child: CustomText(
+          text: s,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: fg,
+        ),
+      ),
     );
   }
 
@@ -639,13 +932,46 @@ class _PhysicalFilingDetailsScreenState
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: CustomText(
-                    text: item.documentName,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF102F54),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CustomText(
+                        text: item.documentName,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF102F54),
+                      ),
+                      if (item.identificationNumber?.trim().isNotEmpty == true) ...[
+                        const SizedBox(height: 3),
+                        CustomText(
+                          text: 'Doc / ID: ${item.identificationNumber!.trim()}',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black54,
+                        ),
+                      ],
+                    ],
                   ),
                 ),
+                if (item.isMandatory) ...[
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.09),
+                      borderRadius: BorderRadius.circular(10),
+                      border:
+                          Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                    ),
+                    child: const CustomText(
+                      text: 'Mandatory',
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
                 if (item.hasDiscrepancy)
                   Container(
                     padding:

@@ -31,9 +31,16 @@ class _PhysicalFilingEntryScreenState extends State<PhysicalFilingEntryScreen> {
 
   PhysicalFilingCase? _details;
   DateTime? _physicalFilingDate;
+  String? _physicalDocumentsRequired;
   String? _errorMessage;
   bool _isLoading = false;
   bool _isSubmitting = false;
+
+  bool get _showPhysicalDocumentsRequiredField {
+    final transmissionType =
+        _details?.documentTransmissionType?.trim().toLowerCase() ?? '';
+    return transmissionType == 'scanned copy';
+  }
 
   @override
   void initState() {
@@ -96,7 +103,7 @@ class _PhysicalFilingEntryScreenState extends State<PhysicalFilingEntryScreen> {
   }
 
   String _toApiDate(DateTime date) {
-    return DateTime.utc(date.year, date.month, date.day).toIso8601String();
+    return DateTime(date.year, date.month, date.day).toIso8601String();
   }
 
   Future<void> _submit() async {
@@ -104,6 +111,13 @@ class _PhysicalFilingEntryScreenState extends State<PhysicalFilingEntryScreen> {
     FocusScope.of(context).unfocus();
     if (_formKey.currentState?.validate() != true) {
       GlobalSnackbar.showError('Please complete all required filing details');
+      return;
+    }
+
+    // Validate physical documents required field if it's shown
+    if (_showPhysicalDocumentsRequiredField && 
+        (_physicalDocumentsRequired == null || _physicalDocumentsRequired!.trim().isEmpty)) {
+      GlobalSnackbar.showError('Please select physical documents required option');
       return;
     }
 
@@ -163,6 +177,34 @@ class _PhysicalFilingEntryScreenState extends State<PhysicalFilingEntryScreen> {
       final response = await ApiClient().submitPhysicalFiling(payload);
       if (!mounted) return;
       if (response?['success'] == true) {
+        // If document transmission type is "Scanned Copy", call physical document requirement API
+        if (_showPhysicalDocumentsRequiredField) {
+          final requiresPhysicalDocuments = _physicalDocumentsRequired == 'Yes';
+          final documentRequirementPayload = <String, dynamic>{
+            'caseId': details.caseId,
+            'requiresPhysicalDocuments': requiresPhysicalDocuments,
+            'updatedBy': updatedBy,
+          };
+          
+          try {
+            final docResponse = await ApiClient()
+                .submitPhysicalDocumentRequirement(documentRequirementPayload);
+            if (!mounted) return;
+            if (docResponse?['success'] != true) {
+              GlobalSnackbar.showError(
+                docResponse?['message']?.toString() ??
+                    'Physical document requirement API response unclear',
+              );
+            }
+          } catch (_) {
+            if (mounted) {
+              GlobalSnackbar.showError(
+                'Physical document requirement submission failed, but filing details submitted',
+              );
+            }
+          }
+        }
+
         GlobalSnackbar.showSuccess(
           response?['message']?.toString() ??
               'Physical filing details submitted successfully',
@@ -277,6 +319,24 @@ class _PhysicalFilingEntryScreenState extends State<PhysicalFilingEntryScreen> {
                 color: Color(0xFF102F54),
               ),
               const SizedBox(height: 14),
+              if (_showPhysicalDocumentsRequiredField) ...[
+                _buildLabel('Physical Documents Required? *'),
+                DropdownButtonFormField<String>(
+                  value: _physicalDocumentsRequired,
+                  isExpanded: true,
+                  decoration: _inputDecoration('Select required option'),
+                  items: const [
+                    DropdownMenuItem(value: 'Yes', child: Text('Yes')),
+                    DropdownMenuItem(value: 'No', child: Text('No')),
+                  ],
+                  validator: (value) =>
+                      value == null || value.trim().isEmpty
+                          ? 'Please select an option'
+                          : null,
+                  onChanged: (value) => setState(() => _physicalDocumentsRequired = value),
+                ),
+                const SizedBox(height: 16),
+              ],
               _buildLabel('Date of Physical Filing *'),
               _buildDateField(),
               const SizedBox(height: 16),
@@ -389,6 +449,13 @@ class _PhysicalFilingEntryScreenState extends State<PhysicalFilingEntryScreen> {
                   Icons.calendar_today_outlined,
                   'Dispatch Date',
                   dispatchDate,
+                ),
+                _detailRow(
+                  Icons.description_outlined,
+                  'Transmission Mode',
+                  (details.documentTransmissionType?.trim().isNotEmpty ?? false)
+                      ? details.documentTransmissionType!
+                      : 'N/A',
                   showDivider: false,
                 ),
               ],

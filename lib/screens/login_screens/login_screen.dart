@@ -3,7 +3,6 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:re_kyc_mobile_app/models/login_response.dart';
 import 'package:re_kyc_mobile_app/screens/home_screens/home_screen.dart';
 import 'package:re_kyc_mobile_app/screens/login_screens/otp_verify.dart';
 import 'package:re_kyc_mobile_app/service/api_client.dart';
@@ -28,7 +27,6 @@ class _LoginScreenState extends State<LoginScreen> {
   TextEditingController emailController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
   final passwordVisible = true.obs;
-  String? otp;
   bool appVersionSame = false;
   String currentVersion = '';
 
@@ -258,61 +256,68 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void callLoginApi() async {
-    if (ApiClient().isDevMode) {
-      await HiveDataBase().setEmployeeId(emailController.text.trim());
-      Get.offAll(() => const HomeScreen());
+    final employeeId = emailController.text.trim();
+    final password = passwordController.text;
+
+    if (employeeId == '28871' && password == 'VistaarFin@123') {
+      await HiveDataBase().setEmployeeId(employeeId);
+      Get.to(
+        () => const OTPVerifyScreen(
+          employeeId: '28871',
+          localReviewerOtp: '111111',
+        ),
+        transition: Constant.getXTransition,
+      );
       return;
     }
 
-    if (emailController.text.trim() == "28871" &&
-        passwordController.text.trim() == "VistaarFin@123") {
-      await HiveDataBase().setEmployeeId(emailController.text.trim());
-      Get.to(
-          () => OTPVerifyScreen(
-                otp: "111111",
-                employeeId: emailController.text,
-              ),
-          transition: Constant.getXTransition);
-    } else {
-      Map<String, dynamic> body = {
-        "employeeID": emailController.text,
-        "password": passwordController.text
-      };
+    final body = <String, dynamic>{
+      'userId': employeeId,
+      'password': password,
+      'source': 'Field Assist',
+    };
 
-      LoginResponse? response = await ApiClient().loginApi(json.encode(body));
-
-      if (response != null) {
-        if (response.success!) {
-          setState(() {
-            otp = response.otp;
-          });
-          // Get.snackbar("Success", 'OTP is sent to registered mobile no',
-          //     duration: const Duration(seconds: 3),
-          //     backgroundColor: Colors.green,
-          //     colorText: Colors.white);
-          await HiveDataBase().setEmployeeId(emailController.text.trim());
-
-          GlobalSnackbar.showSuccess("OTP is sent to registered mobile no");
-          Get.to(
-              () => OTPVerifyScreen(
-                    otp: otp!,
-                    employeeId: emailController.text,
-                  ),
-              transition: Constant.getXTransition);
-        } else {
-          GlobalSnackbar.showError("${response.error}");
-          // Get.snackbar("Failed", response.error,
-          //     duration: const Duration(seconds: 3),
-          //     backgroundColor: Colors.redAccent,
-          //     colorText: Colors.white);
-        }
-      } else {
-        GlobalSnackbar.showError("Something went wrong");
-        // Get.snackbar("Failed", 'Something went wrong',
-        //     duration: const Duration(seconds: 3),
-        //     backgroundColor: Colors.redAccent,
-        //     colorText: Colors.white);
+    try {
+      final response = await ApiClient().loginApi(json.encode(body));
+      if (response?.success != true) {
+        GlobalSnackbar.showError(
+          response?.error?.toString() ??
+              response?.message ??
+              'Login failed. Please check your credentials.',
+        );
+        return;
       }
+
+      await HiveDataBase().setEmployeeId(employeeId);
+
+      if (!response!.twoFactorEnabled) {
+        Get.offAll(() => const HomeScreen());
+        return;
+      }
+
+      final otpResponse = await ApiClient().sendLoginOtp(
+        json.encode({
+          'userId': employeeId,
+          'source': 'Field Assist',
+        }),
+      );
+
+      if (otpResponse?['success'] == true) {
+        GlobalSnackbar.showSuccess(
+          otpResponse?['message']?.toString() ??
+              'OTP is sent to registered mobile no',
+        );
+        Get.to(
+          () => OTPVerifyScreen(employeeId: employeeId),
+          transition: Constant.getXTransition,
+        );
+      } else {
+        GlobalSnackbar.showError(
+          otpResponse?['message']?.toString() ?? 'Unable to send OTP',
+        );
+      }
+    } catch (_) {
+      GlobalSnackbar.showError('Something went wrong');
     }
   }
 
@@ -324,9 +329,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (response != null) {
       if (response['success']) {
         String serverVersion = response['version'];
-        PackageInfo packageInfo = await PackageInfo.fromPlatform();
-        // String currentVersion = packageInfo.version;
-          String currentVersion = "2.8.1";
+        String currentVersion = "2.8.1";
 
         print(
             "App version (Server):  $serverVersion, App version (Local): $currentVersion");

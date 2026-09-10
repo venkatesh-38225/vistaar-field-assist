@@ -21,3 +21,17 @@ class LegalCategory {
         categoryName: json["category"] ?? "",
       );
 }
+
+class Court {
+  final int id;
+  final String courtName;
+
+  Court({required this.id, required this.courtName});
+
+  factory Court.fromJson(Map<String, dynamic> json) => Court(
+        id: json['id'] is int
+            ? json['id'] as int
+            : int.tryParse(json['id']?.toString() ?? '') ?? 0,
+        courtName: json['courtName']?.toString() ?? '',
+      );
+}

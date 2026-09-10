@@ -33,6 +33,7 @@ import '../models/legal_billing_details_res.dart';
 
 class ApiClient {
   final _client = http.Client();
+  static const String _vistaarApiKey = 'ht9AfQrZmJnu0Gxl';
   final tokenUrl = 'https://api.digitallocker.gov.in/public/oauth2/1/token';
   final _timeLimit = const Duration(seconds: 30);
   // final String key = "rzp_test_OYjmMLmTTjvvkb";
@@ -72,18 +73,56 @@ class ApiClient {
   }
 
   Future<LoginResponse?> loginApi(Object jsonObject) async {
-    var url = Uri.parse('${baseUrl}login/ValidateLogin');
+    var url = Uri.parse('${legalNoticebaseUrl}Login');
     final response = await _client
         .post(url,
             headers: {
               "Content-Type": "application/json",
+              "x-api-key": _vistaarApiKey,
             },
             body: jsonObject)
         .timeout(_timeLimit);
-    if (response.statusCode == 200) {
-      var responseBody = response.body;
-      return LoginResponse.fromMap(json.decode(responseBody));
-    } else {
+    final responseData = _decodeJsonObject(response.body);
+    return responseData == null ? null : LoginResponse.fromMap(responseData);
+  }
+
+  Future<Map<String, dynamic>?> sendLoginOtp(Object jsonObject) async {
+    final url = Uri.parse('${legalNoticebaseUrl}otp/SendOtp');
+    final response = await _client
+        .post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': _vistaarApiKey,
+          },
+          body: jsonObject,
+        )
+        .timeout(_timeLimit);
+
+    return _decodeJsonObject(response.body);
+  }
+
+  Future<Map<String, dynamic>?> verifyLoginOtp(Object jsonObject) async {
+    final url = Uri.parse('${legalNoticebaseUrl}otp/verifyOTP');
+    final response = await _client
+        .post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': _vistaarApiKey,
+          },
+          body: jsonObject,
+        )
+        .timeout(_timeLimit);
+
+    return _decodeJsonObject(response.body);
+  }
+
+  Map<String, dynamic>? _decodeJsonObject(String responseBody) {
+    try {
+      final decoded = json.decode(responseBody);
+      return decoded is Map<String, dynamic> ? decoded : null;
+    } catch (_) {
       return null;
     }
   }
@@ -873,6 +912,31 @@ class ApiClient {
     return null;
   }
 
+  Future<List<Court>?> getActiveCourts() async {
+    final url = Uri.parse('${legalNoticebaseUrl}Legal/Courts').replace(
+      queryParameters: {'isActive': 'true'},
+    );
+    final response = await _client.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': _vistaarApiKey,
+      },
+    ).timeout(_timeLimit);
+
+    if (response.statusCode == 200) {
+      final responseBody = _decodeJsonObject(response.body);
+      if (responseBody?['success'] == true && responseBody?['data'] is List) {
+        return (responseBody!['data'] as List)
+            .whereType<Map>()
+            .map((court) => Court.fromJson(Map<String, dynamic>.from(court)))
+            .where((court) => court.courtName.trim().isNotEmpty)
+            .toList();
+      }
+    }
+    return null;
+  }
+
   Future<Map<String, dynamic>?> createLegalBilling(Object jsonObject) async {
     var url = Uri.parse('${legalNoticebaseUrl}LegalBilling/create');
     final response = await _client
@@ -1089,6 +1153,69 @@ class ApiClient {
   ) async {
     final url = Uri.parse(
       '${legalNoticebaseUrl}SARFAESI/PhysicalFiling/submitFiling',
+    );
+    final response = await _client
+        .post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': 'ht9AfQrZmJnu0Gxl',
+          },
+          body: json.encode(payload),
+        )
+        .timeout(_timeLimit);
+
+    final decoded = json.decode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : null;
+  }
+
+  Future<Map<String, dynamic>?> submitPhysicalDocumentRequirement(
+    Map<String, dynamic> payload,
+  ) async {
+    final url = Uri.parse(
+      '${legalNoticebaseUrl}SARFAESI/PhysicalFiling/physicalDocumentRequirement',
+    );
+    final response = await _client
+        .post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': 'ht9AfQrZmJnu0Gxl',
+          },
+          body: json.encode(payload),
+        )
+        .timeout(_timeLimit);
+
+    final decoded = json.decode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : null;
+  }
+
+  Future<Map<String, dynamic>?> requestWithdrawal(
+    Map<String, dynamic> payload,
+  ) async {
+    final url = Uri.parse(
+      '${legalNoticebaseUrl}SARFAESI/PhysicalFiling/requestWithdrawal',
+    );
+    final response = await _client
+        .post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': 'ht9AfQrZmJnu0Gxl',
+          },
+          body: json.encode(payload),
+        )
+        .timeout(_timeLimit);
+
+    final decoded = json.decode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : null;
+  }
+
+  Future<Map<String, dynamic>?> submitPhysicalFilingDocumentReturn(
+    Map<String, dynamic> payload,
+  ) async {
+    final url = Uri.parse(
+      '${legalNoticebaseUrl}SARFAESI/PhysicalFiling/documentReturn/submit',
     );
     final response = await _client
         .post(

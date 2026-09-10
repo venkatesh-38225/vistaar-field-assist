@@ -119,8 +119,22 @@ class _LanDocsChecklistScreenState extends State<LanDocsChecklistScreen> {
   }
 
   bool _requiresFieldComment(PhysicalFilingChecklistItem item) {
-    return item.hasDiscrepancy ||
-        (item.legalComments?.trim().isNotEmpty == true);
+    return item.hasDiscrepancy;
+  }
+
+  bool _isChecklistItemEditable(PhysicalFilingChecklistItem item) {
+    final hasActiveDiscrepancy = _details?.checklist
+            .any((checklistItem) => checklistItem.hasDiscrepancy) ??
+        false;
+
+    // On a returned checklist, the backend's current hasDiscrepancy flag is
+    // the only source of truth. Old legal comments may remain in the response
+    // after a document is resolved and must not make it editable again.
+    if (hasActiveDiscrepancy) return item.hasDiscrepancy;
+
+    // Before the first submission there is no discrepancy yet, so unanswered
+    // documents must remain selectable. Previously saved answers stay locked.
+    return item.fieldReceived == null;
   }
 
   void _scrollToChecklistItem(int checklistItemId) {
@@ -143,7 +157,7 @@ class _LanDocsChecklistScreenState extends State<LanDocsChecklistScreen> {
   bool _validateSelections(PhysicalFilingCase details) {
     PhysicalFilingChecklistItem? firstUnselected;
     for (final item in details.checklist) {
-      if (_fieldSelections[item.id] == null) {
+      if (_isChecklistItemEditable(item) && _fieldSelections[item.id] == null) {
         firstUnselected = item;
         break;
       }
@@ -222,7 +236,7 @@ class _LanDocsChecklistScreenState extends State<LanDocsChecklistScreen> {
               'isReceived': _fieldSelections[item.id],
               'comments': _requiresFieldComment(item)
                   ? _fieldComments[item.id]?.trim()
-                  : null,
+                  : item.fieldComments,
             },
           )
           .toList(),
@@ -489,6 +503,14 @@ class _LanDocsChecklistScreenState extends State<LanDocsChecklistScreen> {
                   Icons.local_shipping_outlined,
                   'Courier Name',
                   details.courierName.isEmpty ? 'N/A' : details.courierName,
+                  
+                ),
+                 _detailRow(
+                  Icons.local_shipping_outlined,
+                  'Transmission Mode',
+                  (details.documentTransmissionType?.trim().isNotEmpty ?? false)
+                      ? details.documentTransmissionType!
+                      : 'N/A',
                   showDivider: false,
                 ),
               ],
@@ -539,183 +561,254 @@ class _LanDocsChecklistScreenState extends State<LanDocsChecklistScreen> {
   Widget _buildChecklistCard(PhysicalFilingChecklistItem item, int index) {
     final selection = _fieldSelections[item.id];
     final legalColor = item.legalAvailable ? Colors.green : Colors.red;
+    final isMismatch = selection != null && selection != item.legalAvailable;
+    final isEditable = _isChecklistItemEditable(item);
     final isCommentInvalid = _invalidCommentItemId == item.id;
     final isInvalid = _invalidChecklistItemId == item.id || isCommentInvalid;
 
     return Card(
       key: _checklistItemKeys[item.id],
-      elevation: 2,
+      elevation: isMismatch ? 4 : 2,
       margin: const EdgeInsets.only(bottom: 11),
       color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: isInvalid ? Colors.red : Colors.transparent,
-          width: isInvalid ? 1.5 : 0,
+          color: isMismatch
+              ? Colors.orange.shade600
+              : isInvalid
+                  ? Colors.red
+                  : Colors.transparent,
+          width: isMismatch || isInvalid ? 1.8 : 0,
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor:
-                      Constant.mediumBlueColor.withValues(alpha: 0.1),
-                  child: CustomText(
-                    text: '${index + 1}',
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Constant.mediumBlueColor,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: CustomText(
-                    text: item.documentName,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF102F54),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                color: legalColor.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: CustomText(
-                      text: 'Available with Legal user',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black54,
-                    ),
-                  ),
-                  Icon(
-                    item.legalAvailable
-                        ? Icons.check_circle
-                        : Icons.cancel_outlined,
-                    size: 17,
-                    color: legalColor,
-                  ),
-                  const SizedBox(width: 5),
-                  CustomText(
-                    text: item.legalAvailable ? 'Yes' : 'No',
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: legalColor,
+      child: Container(
+        decoration: isMismatch
+            ? BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.orange.withValues(alpha: 0.18),
+                    blurRadius: 10,
+                    spreadRadius: 1,
+                    offset: const Offset(0, 2),
                   ),
                 ],
-              ),
-            ),
-            if (item.legalComments?.trim().isNotEmpty == true) ...[
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.amber.withValues(alpha: 0.09),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.amber.shade300),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const CustomText(
-                      text: 'Legal Comments',
+              )
+            : null,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor:
+                        Constant.mediumBlueColor.withValues(alpha: 0.1),
+                    child: CustomText(
+                      text: '${index + 1}',
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: Constant.mediumBlueColor,
                     ),
-                    const SizedBox(height: 3),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: CustomText(
+                      text: item.documentName,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF102F54),
+                    ),
+                  ),
+                  if (isMismatch)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: Colors.orange.shade300),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            size: 12,
+                            color: Colors.orange.shade700,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Discrepancy',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.orange.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: legalColor.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: CustomText(
+                        text: 'Available with Legal user',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black54,
+                      ),
+                    ),
+                    Icon(
+                      item.legalAvailable
+                          ? Icons.check_circle
+                          : Icons.cancel_outlined,
+                      size: 17,
+                      color: legalColor,
+                    ),
+                    const SizedBox(width: 5),
                     CustomText(
-                      text: item.legalComments!.trim(),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.black54,
+                      text: item.legalAvailable ? 'Yes' : 'No',
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: legalColor,
                     ),
                   ],
                 ),
               ),
-            ],
-            const Divider(height: 22),
-            const CustomText(
-              text: 'Received by Field user?',
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _radioOption(
-                    label: 'Yes',
-                    value: true,
-                    groupValue: selection,
-                    activeColor: Colors.green,
-                    onChanged: (value) => _setFieldSelection(item.id, value),
+              if (item.legalComments?.trim().isNotEmpty == true) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.09),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.amber.shade300),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _radioOption(
-                    label: 'No',
-                    value: false,
-                    groupValue: selection,
-                    activeColor: Colors.red,
-                    onChanged: (value) => _setFieldSelection(item.id, value),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const CustomText(
+                        text: 'Legal Comments',
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                      const SizedBox(height: 3),
+                      CustomText(
+                        text: item.legalComments!.trim(),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.black54,
+                      ),
+                    ],
                   ),
                 ),
               ],
-            ),
-            if (_requiresFieldComment(item)) ...[
-              const SizedBox(height: 14),
+              const Divider(height: 22),
               const CustomText(
-                text: 'Field Comments *',
+                text: 'Received by Field user?',
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: Colors.black87,
               ),
-              const SizedBox(height: 6),
-              TextFormField(
-                key: ValueKey('field-comment-${item.id}'),
-                initialValue: _fieldComments[item.id] ?? '',
-                onChanged: (value) => _setFieldComment(item.id, value),
-                minLines: 2,
-                maxLines: 4,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  hintText: 'Enter comments for this discrepancy',
-                  errorText:
-                      isCommentInvalid ? 'Field comments are required' : null,
-                  filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
+              if (!isEditable) ...[
+                const SizedBox(height: 5),
+                const Row(
+                  children: [
+                    Icon(Icons.lock_outline, size: 14, color: Colors.black45),
+                    SizedBox(width: 5),
+                    Expanded(
+                      child: CustomText(
+                        text:
+                            'No discrepancy reported. Saved selection is read-only.',
+                        fontSize: 10,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.black45,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _radioOption(
+                      label: 'Yes',
+                      value: true,
+                      groupValue: selection,
+                      activeColor: Colors.green,
+                      onChanged: isEditable
+                          ? (value) => _setFieldSelection(item.id, value)
+                          : null,
+                    ),
                   ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _radioOption(
+                      label: 'No',
+                      value: false,
+                      groupValue: selection,
+                      activeColor: Colors.red,
+                      onChanged: isEditable
+                          ? (value) => _setFieldSelection(item.id, value)
+                          : null,
+                    ),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
+                ],
+              ),
+              if (_requiresFieldComment(item)) ...[
+                const SizedBox(height: 14),
+                const CustomText(
+                  text: 'Field Comments *',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+                const SizedBox(height: 6),
+                TextFormField(
+                  key: ValueKey('field-comment-${item.id}'),
+                  initialValue: _fieldComments[item.id] ?? '',
+                  enabled: isEditable,
+                  onChanged: (value) => _setFieldComment(item.id, value),
+                  minLines: 2,
+                  maxLines: 4,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    hintText: 'Enter comments for this discrepancy',
+                    errorText:
+                        isCommentInvalid ? 'Field comments are required' : null,
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -726,11 +819,11 @@ class _LanDocsChecklistScreenState extends State<LanDocsChecklistScreen> {
     required bool value,
     required bool? groupValue,
     required Color activeColor,
-    required ValueChanged<bool> onChanged,
+    required ValueChanged<bool>? onChanged,
   }) {
     final isSelected = groupValue == value;
     return InkWell(
-      onTap: () => onChanged(value),
+      onTap: onChanged == null ? null : () => onChanged(value),
       borderRadius: BorderRadius.circular(8),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
@@ -740,7 +833,11 @@ class _LanDocsChecklistScreenState extends State<LanDocsChecklistScreen> {
               isSelected ? activeColor.withValues(alpha: 0.08) : Colors.white,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? activeColor : Colors.grey.shade300,
+            color: onChanged == null
+                ? Colors.grey.shade300
+                : isSelected
+                    ? activeColor
+                    : Colors.grey.shade300,
             width: isSelected ? 1.5 : 1,
           ),
         ),
@@ -752,14 +849,22 @@ class _LanDocsChecklistScreenState extends State<LanDocsChecklistScreen> {
                   ? Icons.radio_button_checked
                   : Icons.radio_button_unchecked,
               size: 18,
-              color: isSelected ? activeColor : Colors.grey,
+              color: onChanged == null
+                  ? Colors.grey
+                  : isSelected
+                      ? activeColor
+                      : Colors.grey,
             ),
             const SizedBox(width: 6),
             CustomText(
               text: label,
               fontSize: 12,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-              color: isSelected ? activeColor : Colors.black54,
+              color: onChanged == null
+                  ? Colors.black38
+                  : isSelected
+                      ? activeColor
+                      : Colors.black54,
             ),
           ],
         ),
