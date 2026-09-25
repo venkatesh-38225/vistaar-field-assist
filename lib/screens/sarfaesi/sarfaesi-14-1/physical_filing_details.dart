@@ -738,25 +738,39 @@ class _PhysicalFilingDetailsScreenState
         ),
       if (details.documentTransmissionType?.trim().isNotEmpty == true)
         _detailRow(
-          Icons.local_shipping_outlined,
+          Icons.description_outlined,
           'Transmission Mode',
           details.documentTransmissionType!,
         ),
-      _detailRow(
-        Icons.calendar_today_outlined,
-        'Dispatch Date',
-        dispatchDate,
-      ),
-      _detailRow(
-        Icons.confirmation_number_outlined,
-        'POD Number',
-        _valueOrNA(details.podNumber),
-      ),
-      _detailRow(
-        Icons.local_shipping_outlined,
-        'Courier Name',
-        _valueOrNA(details.courierName),
-      ),
+      if (details.documentTransmissionType?.trim().toLowerCase() ==
+          'scanned copy') ...[
+        _detailRow(
+          Icons.email_outlined,
+          'Email Date',
+          _formatDate(details.emailDate),
+        ),
+        _detailRow(
+          Icons.subject_outlined,
+          'Email Subject',
+          _valueOrNA(details.emailSubject ?? ''),
+        ),
+      ] else ...[
+        _detailRow(
+          Icons.calendar_today_outlined,
+          'Dispatch Date',
+          dispatchDate,
+        ),
+        _detailRow(
+          Icons.confirmation_number_outlined,
+          'POD Number',
+          _valueOrNA(details.podNumber),
+        ),
+        _detailRow(
+          Icons.local_shipping_outlined,
+          'Courier Name',
+          _valueOrNA(details.courierName),
+        ),
+      ],
     ];
 
     return Card(
@@ -941,10 +955,12 @@ class _PhysicalFilingDetailsScreenState
                         fontWeight: FontWeight.w600,
                         color: const Color(0xFF102F54),
                       ),
-                      if (item.identificationNumber?.trim().isNotEmpty == true) ...[
+                      if (item.identificationNumber?.trim().isNotEmpty ==
+                          true) ...[
                         const SizedBox(height: 3),
                         CustomText(
-                          text: 'Doc / ID: ${item.identificationNumber!.trim()}',
+                          text:
+                              'Doc / ID: ${item.identificationNumber!.trim()}',
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
                           color: Colors.black54,

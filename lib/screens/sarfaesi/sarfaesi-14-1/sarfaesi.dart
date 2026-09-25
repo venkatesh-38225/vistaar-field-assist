@@ -72,6 +72,7 @@ class _Sarfaesi14PhysicalFilingScreenState
             return record.lan.toLowerCase().contains(query) ||
                 record.podNumber.toLowerCase().contains(query) ||
                 record.courierName.toLowerCase().contains(query) ||
+                (record.emailSubject?.toLowerCase().contains(query) ?? false) ||
                 record.status.toLowerCase().contains(query);
           }).toList();
 
@@ -103,6 +104,7 @@ class _Sarfaesi14PhysicalFilingScreenState
         role: widget.access.trim(),
         status: _apiStatus,
       );
+
       if (!mounted || requestSerial != _requestSerial) return;
 
       if (response?.success == true) {
@@ -291,14 +293,21 @@ class _Sarfaesi14PhysicalFilingScreenState
   }
 
   Widget _buildRecordCard(PhysicalFilingCase record) {
+    final isScannedCopy =
+        record.documentTransmissionType?.trim().toLowerCase() == 'scanned copy';
     final dispatchDate = record.dispatchDate == null
         ? 'N/A'
         : DateFormat('dd-MMM-yyyy').format(record.dispatchDate!);
-    
-    final hasWithdrawalRequest = record.withdrawalStatus != null &&
-        record.withdrawalStatus!.trim().isNotEmpty;
-    final isPendingWithdrawal = hasWithdrawalRequest && 
-        record.withdrawalStatus!.trim().toLowerCase() == 'pending';
+    final emailDate = record.emailDate == null
+        ? 'N/A'
+        : DateFormat('dd-MMM-yyyy').format(record.emailDate!);
+
+    final withdrawalStatusLower =
+        record.withdrawalStatus?.trim().toLowerCase() ?? '';
+    final hasWithdrawalRequest = withdrawalStatusLower.isNotEmpty;
+    final isPendingWithdrawal = withdrawalStatusLower == 'pending';
+    final isWithdrawalRejected = withdrawalStatusLower == 'rejected';
+    final canRequestWithdrawal = !hasWithdrawalRequest || isWithdrawalRejected;
 
     return Card(
       elevation: 3,
@@ -311,105 +320,136 @@ class _Sarfaesi14PhysicalFilingScreenState
             borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
             onTap: () => _openRecord(record),
             child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const CircleAvatar(
-                    backgroundColor: Color(0x1A104D89),
-                    child: Icon(
-                      Icons.account_balance_outlined,
-                      color: Constant.mediumBlueColor,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        CustomText(
-                          text: record.lan,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                  Row(
+                    children: [
+                      const CircleAvatar(
+                        backgroundColor: Color(0x1A104D89),
+                        child: Icon(
+                          Icons.account_balance_outlined,
                           color: Constant.mediumBlueColor,
                         ),
-                        const SizedBox(height: 3),
-                        _buildStatusDisplay(record.status),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right, color: Colors.grey),
-                ],
-              ),
-              const Divider(height: 22),
-              _infoRow(Icons.calendar_today_outlined, 'Dispatch', dispatchDate),
-              _infoRow(Icons.local_shipping_outlined, 'Courier',
-                  record.courierName.isEmpty ? 'N/A' : record.courierName),
-              _infoRow(Icons.confirmation_number_outlined, 'POD Number',
-                  record.podNumber.isEmpty ? 'N/A' : record.podNumber),
-              // Show withdrawal request info if pending
-              if (isPendingWithdrawal) ...[
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF3E0),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFFFB74D), width: 1.5),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.warning_outlined,
-                            size: 18,
-                            color: Color(0xFFF57C00),
-                          ),
-                          const SizedBox(width: 8),
-                          const Expanded(
-                            child: CustomText(
-                              text: 'Withdrawal Request Pending',
-                              fontSize: 13,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CustomText(
+                              text: record.lan,
+                              fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFFF57C00),
+                              color: Constant.mediumBlueColor,
                             ),
+                            const SizedBox(height: 3),
+                            _buildStatusDisplay(record.status),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right, color: Colors.grey),
+                    ],
+                  ),
+                  const Divider(height: 22),
+                  _infoRow(
+                    Icons.description_outlined,
+                    'Transmission Mode',
+                    (record.documentTransmissionType?.trim().isNotEmpty ??
+                            false)
+                        ? record.documentTransmissionType!
+                        : 'N/A',
+                  ),
+                  if (isScannedCopy) ...[
+                    _infoRow(
+                      Icons.email_outlined,
+                      'Email Date',
+                      emailDate,
+                    ),
+                    _infoRow(
+                      Icons.subject_outlined,
+                      'Email Subject',
+                      (record.emailSubject?.trim().isNotEmpty ?? false)
+                          ? record.emailSubject!
+                          : 'N/A',
+                    ),
+                  ] else ...[
+                    _infoRow(Icons.calendar_today_outlined, 'Dispatch',
+                        dispatchDate),
+                    _infoRow(
+                        Icons.local_shipping_outlined,
+                        'Courier',
+                        record.courierName.isEmpty
+                            ? 'N/A'
+                            : record.courierName),
+                    _infoRow(Icons.confirmation_number_outlined, 'POD Number',
+                        record.podNumber.isEmpty ? 'N/A' : record.podNumber),
+                  ],
+                  // Show withdrawal request info if pending
+                  if (isPendingWithdrawal) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF3E0),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: const Color(0xFFFFB74D), width: 1.5),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.warning_outlined,
+                                size: 18,
+                                color: Color(0xFFF57C00),
+                              ),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: CustomText(
+                                  text: 'Withdrawal Request Pending',
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFFF57C00),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          CustomText(
+                            text: 'Reason: ${record.withdrawalReason ?? 'N/A'}',
+                            fontSize: 12,
+                            color: Colors.black87,
+                          ),
+                          const SizedBox(height: 4),
+                          CustomText(
+                            text: 'Status: ${record.withdrawalStatus ?? 'N/A'}',
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFF57C00),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      CustomText(
-                        text: 'Reason: ${record.withdrawalReason ?? 'N/A'}',
-                        fontSize: 12,
-                        color: Colors.black87,
-                      ),
-                      const SizedBox(height: 4),
-                      CustomText(
-                        text: 'Status: ${record.withdrawalStatus ?? 'N/A'}',
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFFF57C00),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
           const Divider(height: 1),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Row(
-                mainAxisAlignment: hasWithdrawalRequest ? MainAxisAlignment.end : MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: canRequestWithdrawal
+                  ? MainAxisAlignment.spaceBetween
+                  : MainAxisAlignment.end,
               children: [
-                // Only show Withdraw button if no withdrawal request exists
-                if (!hasWithdrawalRequest)
+                // Show Withdraw button if no withdrawal request exists or if previous request was rejected
+                if (canRequestWithdrawal)
                   Expanded(
                     child: Align(
                       alignment: Alignment.centerLeft,
@@ -431,10 +471,11 @@ class _Sarfaesi14PhysicalFilingScreenState
                       ),
                     ),
                   ),
-                if (!hasWithdrawalRequest) const SizedBox(width: 10),
+                if (canRequestWithdrawal) const SizedBox(width: 10),
                 ElevatedButton.icon(
                   onPressed: () => _openRecord(record),
-                  icon: const Icon(Icons.arrow_forward, size: 18, color: Colors.white),
+                  icon: const Icon(Icons.arrow_forward,
+                      size: 18, color: Colors.white),
                   label: Text(
                     _isDocumentReturnPending(record) ||
                             _selectedStatus == 'Pending'
@@ -471,25 +512,29 @@ class _Sarfaesi14PhysicalFilingScreenState
       return;
     }
 
-    if (_requiresPhysicalFiling(record) && record.dashboardStatus == "Pending") {
+    if (_requiresPhysicalFiling(record) &&
+        record.dashboardStatus == "Pending") {
       final result = await Get.to(() => PhysicalFilingEntryScreen(
             caseId: record.id,
             updatedBy: widget.profile.data?.employeeId ?? '',
           ));
       if (result == true) _fetchRecords();
-    } else if (_isFilingDetails(record) && record.dashboardStatus == "Pending") {
+    } else if (_isFilingDetails(record) &&
+        record.dashboardStatus == "Pending") {
       final result = await Get.to(() => FilingDetailsScreen(
             caseId: record.id,
             updatedBy: widget.profile.data?.employeeId ?? '',
           ));
       if (result == true) _fetchRecords();
-    } else if (_isAdvocateAssignment(record) && record.dashboardStatus == "Pending") {
+    } else if (_isAdvocateAssignment(record) &&
+        record.dashboardStatus == "Pending") {
       final result = await Get.to(() => AssignAdvocateScreen(
             caseId: record.id,
             updatedBy: widget.profile.data?.employeeId ?? '',
           ));
       if (result == true) _fetchRecords();
-    } else if (_selectedStatus == 'Pending' && record.dashboardStatus == "Pending") {
+    } else if (_selectedStatus == 'Pending' &&
+        record.dashboardStatus == "Pending") {
       final result = await Get.to(() => LanDocsChecklistScreen(
             caseId: record.id,
             submittedBy: widget.profile.data?.employeeId ?? '',
@@ -520,7 +565,8 @@ class _Sarfaesi14PhysicalFilingScreenState
     final status = record.status.trim().toLowerCase();
     final documentReturnStatus =
         record.documentReturnStatus?.trim().toLowerCase() ?? '';
-    return status == 'document return pending' && documentReturnStatus == 'pending';
+    return status == 'document return pending' &&
+        documentReturnStatus == 'pending';
   }
 
   bool _isAdvocateAssignment(PhysicalFilingCase record) {
@@ -537,23 +583,25 @@ class _Sarfaesi14PhysicalFilingScreenState
     if (_selectedStatus != 'Pending') return false;
 
     final filingType = record.filingType.trim().toLowerCase();
+    final status = record.status.trim().toLowerCase();
     final hasEFilingDetails = filingType.contains('e-filing') ||
         record.eFilingDate != null ||
         record.eFilingCaseNumber.trim().isNotEmpty;
+    final hasEFiled = status == "filed - e-filing";
     final hasPhysicalFilingDetails = record.physicalFilingDate != null ||
         record.physicalFilingCaseNumber.trim().isNotEmpty;
 
-    return hasEFilingDetails && !hasPhysicalFilingDetails;
+    return hasEFilingDetails && !hasPhysicalFilingDetails && hasEFiled;
   }
 
   Widget _buildStatusDisplay(String status) {
     final lowerStatus = status.toLowerCase();
     final isWithdrawalStatus = lowerStatus.contains('withdraw');
-    
+
     if (isWithdrawalStatus) {
       return StatusIndicator.fromStatus(status);
     }
-    
+
     return CustomText(
       text: status,
       fontSize: 12,
@@ -836,9 +884,7 @@ class _WithdrawDialogState extends State<_WithdrawDialog> {
                         else
                           const SizedBox.shrink(),
                         Text(
-                          _isSubmitting
-                              ? 'Submitting...'
-                              : 'Confirm Withdraw',
+                          _isSubmitting ? 'Submitting...' : 'Confirm Withdraw',
                           style: const TextStyle(color: Colors.white),
                         ),
                       ],

@@ -5,6 +5,7 @@ import 'package:re_kyc_mobile_app/models/physical_filing_response.dart';
 import 'package:re_kyc_mobile_app/service/api_client.dart';
 import 'package:re_kyc_mobile_app/utils/constant.dart';
 import 'package:re_kyc_mobile_app/utils/global_snackbar.dart';
+import 'package:re_kyc_mobile_app/widgets/custom_confirm_dialog.dart';
 import 'package:re_kyc_mobile_app/widgets/custom_text.dart';
 
 import 'physical_filing_logs_tab.dart';
@@ -200,30 +201,20 @@ class _LanDocsChecklistScreenState extends State<LanDocsChecklistScreen> {
       return;
     }
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await CustomConfirmDialog.show(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Submit Checklist'),
-        content: const Text(
-          'Are you sure you want to submit this document checklist?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Constant.mediumBlueColor,
-            ),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text(
-              'Submit',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
+      title: 'Submit Document Checklist',
+      highlightItems: {
+        'LAN': details.lan,
+        'Status': details.status,
+        'Total Documents': '${details.checklist.length}',
+      },
+      message:
+          'Are you sure you want to submit this document checklist for LAN ${details.lan}?',
+      confirmText: 'Submit Checklist',
+      icon: Icons.checklist_rtl_rounded,
+      iconColor: Constant.mediumBlueColor,
+      iconBackgroundColor: const Color(0xFFE3F2FD),
     );
     if (confirmed != true || !mounted) return;
 
@@ -450,9 +441,15 @@ class _LanDocsChecklistScreenState extends State<LanDocsChecklistScreen> {
   }
 
   Widget _buildCaseDetailsCard(PhysicalFilingCase details) {
+    final isScannedCopy =
+        details.documentTransmissionType?.trim().toLowerCase() ==
+            'scanned copy';
     final dispatchDate = details.dispatchDate == null
         ? 'N/A'
         : DateFormat('dd-MMM-yyyy').format(details.dispatchDate!);
+    final emailDate = details.emailDate == null
+        ? 'N/A'
+        : DateFormat('dd-MMM-yyyy').format(details.emailDate!);
 
     return Card(
       elevation: 2,
@@ -492,21 +489,38 @@ class _LanDocsChecklistScreenState extends State<LanDocsChecklistScreen> {
             child: Column(
               children: [
                 _detailRow(Icons.info_outline, 'Status', details.status),
-                _detailRow(Icons.calendar_today_outlined, 'Dispatch Date',
-                    dispatchDate),
+                if (isScannedCopy) ...[
+                  _detailRow(
+                    Icons.email_outlined,
+                    'Email Date',
+                    emailDate,
+                  ),
+                  _detailRow(
+                    Icons.subject_outlined,
+                    'Email Subject',
+                    (details.emailSubject?.trim().isNotEmpty ?? false)
+                        ? details.emailSubject!
+                        : 'N/A',
+                  ),
+                ] else ...[
+                  _detailRow(
+                    Icons.calendar_today_outlined,
+                    'Dispatch Date',
+                    dispatchDate,
+                  ),
+                  _detailRow(
+                    Icons.confirmation_number_outlined,
+                    'POD Number',
+                    details.podNumber.isEmpty ? 'N/A' : details.podNumber,
+                  ),
+                  _detailRow(
+                    Icons.local_shipping_outlined,
+                    'Courier Name',
+                    details.courierName.isEmpty ? 'N/A' : details.courierName,
+                  ),
+                ],
                 _detailRow(
-                  Icons.confirmation_number_outlined,
-                  'POD Number',
-                  details.podNumber.isEmpty ? 'N/A' : details.podNumber,
-                ),
-                _detailRow(
-                  Icons.local_shipping_outlined,
-                  'Courier Name',
-                  details.courierName.isEmpty ? 'N/A' : details.courierName,
-                  
-                ),
-                 _detailRow(
-                  Icons.local_shipping_outlined,
+                  Icons.description_outlined,
                   'Transmission Mode',
                   (details.documentTransmissionType?.trim().isNotEmpty ?? false)
                       ? details.documentTransmissionType!

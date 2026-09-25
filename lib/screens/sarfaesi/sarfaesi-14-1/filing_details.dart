@@ -6,6 +6,7 @@ import 'package:re_kyc_mobile_app/models/legal_masters.dart';
 import 'package:re_kyc_mobile_app/service/api_client.dart';
 import 'package:re_kyc_mobile_app/utils/constant.dart';
 import 'package:re_kyc_mobile_app/utils/global_snackbar.dart';
+import 'package:re_kyc_mobile_app/widgets/custom_confirm_dialog.dart';
 import 'package:re_kyc_mobile_app/widgets/custom_text.dart';
 
 import 'physical_filing_logs_tab.dart';
@@ -24,7 +25,8 @@ class FilingDetailsScreen extends StatefulWidget {
   State<FilingDetailsScreen> createState() => _FilingDetailsScreenState();
 }
 
-class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
+class _FilingDetailsScreenState extends State<FilingDetailsScreen>
+    with SingleTickerProviderStateMixin {
   static const _filingTypes = ['E-Filing', 'Physical Filing'];
 
   final _formKey = GlobalKey<FormState>();
@@ -45,18 +47,48 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
   bool _isLoadingCourts = false;
   String? _courtsErrorMessage;
   bool _isSubmitting = false;
+  bool _isSubmittingRequirement = false;
+
+  late AnimationController _alertAnimationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+  late Animation<double> _scaleAnimation;
+
+  bool get _showDocumentRequirementsBanner => _details != null;
 
   bool get _isEFiling => _filingType == 'E-Filing';
 
   @override
   void initState() {
     super.initState();
-    _loadDetails();
-    _loadCourts();
+    _alertAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 550),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _alertAnimationController,
+      curve: Curves.easeOut,
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, -0.2),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _alertAnimationController,
+      curve: Curves.easeOutBack,
+    ));
+    _scaleAnimation = Tween<double>(
+      begin: 0.93,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _alertAnimationController,
+      curve: Curves.easeOutBack,
+    ));
+    _loadData();
   }
 
   @override
   void dispose() {
+    _alertAnimationController.dispose();
     _courtNameController.dispose();
     _eFilingDateController.dispose();
     _eFilingCaseNumberController.dispose();
@@ -65,21 +97,46 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
     super.dispose();
   }
 
-  Future<void> _loadDetails() async {
+  Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
+      _isLoadingCourts = true;
       _errorMessage = null;
+      _courtsErrorMessage = null;
     });
+
     try {
-      final response = await ApiClient().getPhysicalFilingById(widget.caseId);
+      final results = await Future.wait<dynamic>([
+        ApiClient().getPhysicalFilingById(widget.caseId),
+        ApiClient().getActiveCourts(),
+      ]);
       if (!mounted) return;
-      if (response?.success == true && response?.data != null) {
-        setState(() => _details = response!.data);
+
+      final detailsResponse = results[0] as PhysicalFilingDetailsResponse?;
+      final courts = results[1] as List<Court>?;
+
+      if (detailsResponse?.success == true && detailsResponse?.data != null) {
+        final PhysicalFilingCase details = detailsResponse!.data!;
+        final courtsList = courts ?? [];
+
+        _populateExistingDetails(details, courtsList);
+
+        setState(() {
+          _details = details;
+          _courts = courtsList;
+          if (courts == null) {
+            _courtsErrorMessage = 'Unable to load courts. Please try again.';
+          }
+        });
+        if (_showDocumentRequirementsBanner) {
+          _alertAnimationController.forward(from: 0.0);
+        }
       } else {
         setState(() {
           _details = null;
-          _errorMessage = response?.message.isNotEmpty == true
-              ? response!.message
+          _courts = courts ?? [];
+          _errorMessage = detailsResponse?.message.isNotEmpty == true
+              ? detailsResponse!.message
               : 'Failed to fetch filing details';
         });
       }
@@ -87,33 +144,68 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
       if (!mounted) return;
       setState(() {
         _details = null;
+        _courts = [];
         _errorMessage = 'Unable to load filing details';
       });
       GlobalSnackbar.showError('Unable to load filing details');
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isLoadingCourts = false;
+        });
+      }
     }
   }
 
-  Future<void> _loadCourts() async {
-    setState(() {
-      _isLoadingCourts = true;
-      _courtsErrorMessage = null;
-    });
-    try {
-      final courts = await ApiClient().getActiveCourts();
-      if (!mounted) return;
-      setState(() {
-        _courts = courts ?? [];
-        if (courts == null) {
-          _courtsErrorMessage = 'Unable to load courts. Please try again.';
-        }
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _courtsErrorMessage = 'Unable to load courts. Please try again.');
-    } finally {
-      if (mounted) setState(() => _isLoadingCourts = false);
+  void _populateExistingDetails(
+    PhysicalFilingCase details,
+    List<Court> courtsList,
+  ) {
+    if (_filingType == null && details.filingType.trim().isNotEmpty) {
+      final ftLower = details.filingType.trim().toLowerCase();
+      if (ftLower.contains('e-filing')) {
+        _filingType = 'E-Filing';
+      } else if (ftLower.contains('physical')) {
+        _filingType = 'Physical Filing';
+      } else {
+        _filingType = details.filingType.trim();
+      }
+    }
+
+    if (_selectedCourt == null && details.courtName.trim().isNotEmpty) {
+      final name = details.courtName.trim();
+      Court? match;
+      try {
+        match = courtsList.firstWhere(
+          (c) => c.courtName.trim().toLowerCase() == name.toLowerCase(),
+        );
+      } catch (_) {
+        match = Court(id: 0, courtName: name);
+        courtsList.insert(0, match);
+      }
+      _selectedCourt = match;
+    }
+
+    if (_eFilingDate == null && details.eFilingDate != null) {
+      _eFilingDate = details.eFilingDate;
+      _eFilingDateController.text =
+          DateFormat('dd-MM-yyyy').format(details.eFilingDate!);
+    }
+    if (_eFilingCaseNumberController.text.trim().isEmpty &&
+        details.eFilingCaseNumber.trim().isNotEmpty) {
+      _eFilingCaseNumberController.text = details.eFilingCaseNumber.trim();
+    }
+
+    if (_physicalFilingDate == null && details.physicalFilingDate != null) {
+      _physicalFilingDate = details.physicalFilingDate;
+      _physicalFilingDateController.text =
+          DateFormat('dd-MM-yyyy').format(details.physicalFilingDate!);
+    }
+    if (_physicalFilingCaseNumberController.text.trim().isEmpty &&
+        details.physicalFilingCaseNumber.trim().isNotEmpty) {
+      _physicalFilingCaseNumberController.text =
+          details.physicalFilingCaseNumber.trim();
     }
   }
 
@@ -158,8 +250,90 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
     return DateTime(date.year, date.month, date.day).toIso8601String();
   }
 
+  Future<void> _confirmAndSubmitRequirement({
+    required String questionType,
+    required bool isYes,
+  }) async {
+    final details = _details;
+    if (details == null || details.caseId == 0 || !mounted) return;
+    final updatedBy = widget.updatedBy.trim();
+    if (updatedBy.isEmpty) {
+      GlobalSnackbar.showError('Updated user ID is unavailable');
+      return;
+    }
+
+    final bool isPhysicalDocs = questionType == 'Physical Documents';
+    final TextEditingController commentsController = TextEditingController();
+
+    try {
+      final confirmed = await CustomConfirmDialog.show(
+        context: context,
+        title: 'Confirm Requirement',
+        highlightItems: {
+          'Question': '$questionType Required?',
+          'Selected': isYes ? 'Yes' : 'No',
+        },
+        message: 'This will save your choice and return to the case list.',
+        confirmText: 'Submit',
+        showInputField: !isPhysicalDocs,
+        inputLabel: 'Comments',
+        inputHint: isYes
+            ? 'Enter reason for additional documents...'
+            : 'Enter comments (optional)...',
+        isInputRequired: !isPhysicalDocs && isYes,
+        inputController: commentsController,
+        inputValidationErrorMessage:
+            'Please enter reason for additional documents',
+      );
+
+      if (confirmed != true || !mounted) return;
+
+      final comments = commentsController.text.trim();
+
+      setState(() => _isSubmittingRequirement = true);
+      try {
+        final payload = <String, dynamic>{
+          'caseId': details.caseId,
+          if (isPhysicalDocs) 'requiresPhysicalDocuments': isYes,
+          if (!isPhysicalDocs) ...{
+            'requiresAdditionalDocuments': isYes,
+            if (comments.isNotEmpty) 'comments': comments,
+          },
+          'updatedBy': updatedBy,
+        };
+
+        final response = isPhysicalDocs
+            ? await ApiClient().submitPhysicalDocumentRequirement(payload)
+            : await ApiClient().submitAdditionalDocumentRequirement(payload);
+
+        if (!mounted) return;
+        if (response?['success'] == true) {
+          GlobalSnackbar.showSuccess(
+            response?['message']?.toString() ??
+                '$questionType requirement submitted successfully',
+          );
+          Get.back(result: true);
+        } else {
+          GlobalSnackbar.showError(
+            response?['message']?.toString() ?? 'Failed to submit requirement',
+          );
+        }
+      } catch (_) {
+        if (mounted) {
+          GlobalSnackbar.showError('Unable to submit requirement');
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isSubmittingRequirement = false);
+        }
+      }
+    } finally {
+      commentsController.dispose();
+    }
+  }
+
   Future<void> _submit() async {
-    if (_isSubmitting) return;
+    if (_isSubmitting || _isSubmittingRequirement) return;
     FocusScope.of(context).unfocus();
     if (_formKey.currentState?.validate() != true) {
       GlobalSnackbar.showError('Please complete all required filing details');
@@ -182,27 +356,29 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
       return;
     }
 
-    final confirmed = await showDialog<bool>(
+    final filingDateStr = _isEFiling
+        ? DateFormat('dd-MMM-yyyy').format(_eFilingDate!)
+        : DateFormat('dd-MMM-yyyy').format(_physicalFilingDate!);
+    final caseNumber = _isEFiling
+        ? _eFilingCaseNumberController.text.trim()
+        : _physicalFilingCaseNumberController.text.trim();
+
+    final confirmed = await CustomConfirmDialog.show(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Submit Filing Details'),
-        content: Text(
-          'Submit $filingType details for LAN ${details.lan}?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Constant.mediumBlueColor,
-            ),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Submit', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+      title: 'Submit Filing Details',
+      highlightItems: {
+        'LAN': details.lan,
+        'Filing Type': filingType,
+        'Court Name': _selectedCourt!.courtName,
+        'Filing Date': filingDateStr,
+        'Case Number': caseNumber,
+      },
+      message:
+          'Are you sure you want to submit $filingType details for LAN ${details.lan}?',
+      confirmText: 'Submit Filing',
+      icon: Icons.assignment_turned_in_outlined,
+      iconColor: Constant.mediumBlueColor,
+      iconBackgroundColor: const Color(0xFFE3F2FD),
     );
     if (confirmed != true || !mounted) return;
 
@@ -275,7 +451,7 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
               details: _details,
               isLoading: _isLoading,
               errorMessage: _errorMessage,
-              onRefresh: _loadDetails,
+              onRefresh: _loadData,
             ),
           ],
         ),
@@ -291,7 +467,7 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
     }
     if (_errorMessage != null || _details == null) {
       return RefreshIndicator(
-        onRefresh: _loadDetails,
+        onRefresh: _loadData,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(24),
@@ -308,7 +484,7 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
             const SizedBox(height: 10),
             Center(
               child: TextButton.icon(
-                onPressed: _loadDetails,
+                onPressed: _loadData,
                 icon: const Icon(Icons.refresh),
                 label: const Text('Retry'),
               ),
@@ -319,7 +495,7 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
     }
 
     return RefreshIndicator(
-      onRefresh: _loadDetails,
+      onRefresh: _loadData,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 28),
@@ -328,6 +504,10 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (_showDocumentRequirementsBanner) ...[
+                _buildDocumentRequirementsAlertBanner(),
+                const SizedBox(height: 14),
+              ],
               _buildCaseDetailsCard(_details!),
               const SizedBox(height: 18),
               const CustomText(
@@ -399,7 +579,9 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton.icon(
-                  onPressed: _isSubmitting ? null : _submit,
+                  onPressed: (_isSubmitting || _isSubmittingRequirement)
+                      ? null
+                      : _submit,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Constant.mediumBlueColor,
                     disabledBackgroundColor: Colors.grey.shade400,
@@ -433,9 +615,15 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
   }
 
   Widget _buildCaseDetailsCard(PhysicalFilingCase details) {
+    final isScannedCopy =
+        details.documentTransmissionType?.trim().toLowerCase() ==
+            'scanned copy';
     final dispatchDate = details.dispatchDate == null
         ? 'N/A'
         : DateFormat('dd-MMM-yyyy').format(details.dispatchDate!);
+    final emailDate = details.emailDate == null
+        ? 'N/A'
+        : DateFormat('dd-MMM-yyyy').format(details.emailDate!);
     return Card(
       elevation: 2,
       margin: EdgeInsets.zero,
@@ -473,20 +661,42 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
             child: Column(
               children: [
                 _detailRow(Icons.info_outline, 'Status', details.status),
+                if (isScannedCopy) ...[
+                  _detailRow(
+                    Icons.email_outlined,
+                    'Email Date',
+                    emailDate,
+                  ),
+                  _detailRow(
+                    Icons.subject_outlined,
+                    'Email Subject',
+                    (details.emailSubject?.trim().isNotEmpty ?? false)
+                        ? details.emailSubject!
+                        : 'N/A',
+                  ),
+                ] else ...[
+                  _detailRow(
+                    Icons.calendar_today_outlined,
+                    'Dispatch Date',
+                    dispatchDate,
+                  ),
+                  _detailRow(
+                    Icons.confirmation_number_outlined,
+                    'POD Number',
+                    details.podNumber,
+                  ),
+                  _detailRow(
+                    Icons.local_shipping_outlined,
+                    'Courier Name',
+                    details.courierName,
+                  ),
+                ],
                 _detailRow(
-                  Icons.calendar_today_outlined,
-                  'Dispatch Date',
-                  dispatchDate,
-                ),
-                _detailRow(
-                  Icons.confirmation_number_outlined,
-                  'POD Number',
-                  details.podNumber,
-                ),
-                _detailRow(
-                  Icons.local_shipping_outlined,
-                  'Courier Name',
-                  details.courierName,
+                  Icons.description_outlined,
+                  'Transmission Mode',
+                  (details.documentTransmissionType?.trim().isNotEmpty ?? false)
+                      ? details.documentTransmissionType!
+                      : 'N/A',
                   showDivider: false,
                 ),
               ],
@@ -519,12 +729,13 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
               style: const TextStyle(color: Colors.redAccent, fontSize: 12),
             ),
           ),
-          TextButton(onPressed: _loadCourts, child: const Text('Retry')),
+          TextButton(onPressed: _loadData, child: const Text('Retry')),
         ],
       );
     }
 
     return Autocomplete<Court>(
+      initialValue: TextEditingValue(text: _selectedCourt?.courtName ?? ''),
       displayStringForOption: (court) => court.courtName,
       optionsBuilder: (textEditingValue) {
         final query = textEditingValue.text.trim().toLowerCase();
@@ -537,12 +748,16 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
         setState(() => _selectedCourt = court);
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+        if (controller.text.isEmpty && _selectedCourt != null) {
+          controller.text = _selectedCourt!.courtName;
+        }
         return TextFormField(
           controller: controller,
           focusNode: focusNode,
           textCapitalization: TextCapitalization.words,
           decoration: _inputDecoration('Search and select court name').copyWith(
-            suffixIcon: const Icon(Icons.arrow_drop_down, color: Constant.mediumBlueColor),
+            suffixIcon: const Icon(Icons.arrow_drop_down,
+                color: Constant.mediumBlueColor),
           ),
           onChanged: (value) {
             if (_selectedCourt?.courtName != value) {
@@ -688,5 +903,206 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen> {
   String? Function(String?) _requiredValidator(String fieldName) {
     return (value) =>
         value?.trim().isEmpty ?? true ? '$fieldName is required' : null;
+  }
+
+  Widget _buildDocumentRequirementsAlertBanner() {
+    final isScannedCopy =
+        _details?.documentTransmissionType?.trim().toLowerCase() ==
+            'scanned copy';
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: ScaleTransition(
+          scale: _scaleAnimation,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF8E1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: const Color(0xFFFFB74D),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFF57C00).withValues(alpha: 0.14),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFA000).withValues(alpha: 0.18),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.warning_amber_rounded,
+                        color: Color(0xFFE65100),
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const CustomText(
+                            text: 'Document Requirements',
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFBF360C),
+                          ),
+                          const SizedBox(height: 2),
+                          CustomText(
+                            text: isScannedCopy
+                                ? 'Scanned transmission mode detected (Optional)'
+                                : 'Document requirement confirmation (Optional)',
+                            fontSize: 11,
+                            color: const Color(0xFF8D4B00),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_isSubmittingRequirement)
+                      const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFFE65100),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                if (isScannedCopy) ...[
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: const Color(0xFFFFE082),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                          child: CustomText(
+                            text: 'Physical Documents Required?',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _buildChoiceButton(
+                          questionType: 'Physical Documents',
+                          label: 'Yes',
+                          isYes: true,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildChoiceButton(
+                          questionType: 'Physical Documents',
+                          label: 'No',
+                          isYes: false,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFFFFE082),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: CustomText(
+                          text: 'Additional Documents Required?',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildChoiceButton(
+                        questionType: 'Additional Documents',
+                        label: 'Yes',
+                        isYes: true,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildChoiceButton(
+                        questionType: 'Additional Documents',
+                        label: 'No',
+                        isYes: false,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChoiceButton({
+    required String questionType,
+    required String label,
+    required bool isYes,
+  }) {
+    return SizedBox(
+      height: 32,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(
+            color: Color(0xFFE65100),
+            width: 1.2,
+          ),
+          foregroundColor: const Color(0xFFE65100),
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+        ),
+        onPressed: (_isLoading || _isSubmitting || _isSubmittingRequirement)
+            ? null
+            : () => _confirmAndSubmitRequirement(
+                  questionType: questionType,
+                  isYes: isYes,
+                ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFFE65100),
+          ),
+        ),
+      ),
+    );
   }
 }

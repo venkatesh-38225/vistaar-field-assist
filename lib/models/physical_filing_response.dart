@@ -63,6 +63,8 @@ class PhysicalFilingCase {
     required this.podNumber,
     required this.courierName,
     required this.documentTransmissionType,
+    this.emailDate,
+    this.emailSubject,
     required this.advocateId,
     required this.advocateName,
     required this.advocateAssignmentDate,
@@ -91,6 +93,7 @@ class PhysicalFilingCase {
     this.documentReturnCompletedBy,
     this.documentReturnCompletedDt,
     this.requiresPhysicalDocuments,
+    this.requiresAdditionalDocuments,
     required this.createdBy,
     required this.createdDt,
     required this.updatedBy,
@@ -113,6 +116,8 @@ class PhysicalFilingCase {
   final String podNumber;
   final String courierName;
   final String? documentTransmissionType;
+  final DateTime? emailDate;
+  final String? emailSubject;
   final int advocateId;
   final String advocateName;
   final DateTime? advocateAssignmentDate;
@@ -141,6 +146,7 @@ class PhysicalFilingCase {
   final String? documentReturnCompletedBy;
   final DateTime? documentReturnCompletedDt;
   final bool? requiresPhysicalDocuments;
+  final bool? requiresAdditionalDocuments;
   final String createdBy;
   final DateTime? createdDt;
   final String updatedBy;
@@ -168,8 +174,10 @@ class PhysicalFilingCase {
           documentReturnRemarks!.trim().isNotEmpty) ||
       (documentReturnRequestedBy != null &&
           documentReturnRequestedBy!.trim().isNotEmpty) ||
+      (documentReturnRequestedDt != null) ||
       (documentReturnCompletedBy != null &&
-          documentReturnCompletedBy!.trim().isNotEmpty);
+          documentReturnCompletedBy!.trim().isNotEmpty) ||
+      (documentReturnCompletedDt != null);
 
   bool get hasAdvocateDetails =>
       advocateId > 0 ||
@@ -204,6 +212,8 @@ class PhysicalFilingCase {
       podNumber: json['podNumber']?.toString() ?? '',
       courierName: json['courierName']?.toString() ?? '',
       documentTransmissionType: json['documentTransmissionType']?.toString(),
+      emailDate: DateTime.tryParse(json['emailDate']?.toString() ?? ''),
+      emailSubject: json['emailSubject']?.toString(),
       advocateId: (json['advocateId'] as num?)?.toInt() ?? 0,
       advocateName: json['advocateName']?.toString() ?? '',
       advocateAssignmentDate: DateTime.tryParse(
@@ -248,6 +258,8 @@ class PhysicalFilingCase {
         json['documentReturnCompletedDt']?.toString() ?? '',
       ),
       requiresPhysicalDocuments: json['requiresPhysicalDocuments'] as bool?,
+      requiresAdditionalDocuments:
+          json['requiresAdditionalDocuments'] as bool?,
       createdBy: json['createdBy']?.toString() ?? '',
       createdDt: DateTime.tryParse(json['createdDt']?.toString() ?? ''),
       updatedBy: json['updatedBy']?.toString() ?? '',

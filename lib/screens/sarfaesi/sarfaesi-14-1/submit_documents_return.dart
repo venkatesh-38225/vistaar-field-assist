@@ -5,6 +5,7 @@ import 'package:re_kyc_mobile_app/models/physical_filing_response.dart';
 import 'package:re_kyc_mobile_app/service/api_client.dart';
 import 'package:re_kyc_mobile_app/utils/constant.dart';
 import 'package:re_kyc_mobile_app/utils/global_snackbar.dart';
+import 'package:re_kyc_mobile_app/widgets/custom_confirm_dialog.dart';
 import 'package:re_kyc_mobile_app/widgets/custom_text.dart';
 import 'package:re_kyc_mobile_app/widgets/status_indicator.dart';
 
@@ -137,27 +138,22 @@ class _SubmitDocumentsReturnScreenState
       return;
     }
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await CustomConfirmDialog.show(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Submit Document Return'),
-        content: Text(
-          'Submit document return details for LAN ${details.lan}?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Constant.mediumBlueColor,
-            ),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Confirm', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+      title: 'Submit Document Return',
+      highlightItems: {
+        'LAN': details.lan,
+        'Dispatch Date': DateFormat('dd-MMM-yyyy').format(dispatchDate),
+        'Courier Name': courierName,
+        if (_podNumberController.text.trim().isNotEmpty)
+          'POD Number': _podNumberController.text.trim(),
+      },
+      message:
+          'Are you sure you want to submit document return details for LAN ${details.lan}?',
+      confirmText: 'Confirm & Return',
+      icon: Icons.local_shipping_outlined,
+      iconColor: Constant.mediumBlueColor,
+      iconBackgroundColor: const Color(0xFFE3F2FD),
     );
     if (confirmed != true || !mounted) return;
 
@@ -462,9 +458,15 @@ class _SubmitDocumentsReturnScreenState
   }
 
   Widget _buildCaseDetailsCard(PhysicalFilingCase details) {
+    final isScannedCopy =
+        details.documentTransmissionType?.trim().toLowerCase() ==
+            'scanned copy';
     final dispatchDate = details.dispatchDate == null
         ? 'N/A'
         : DateFormat('dd-MMM-yyyy').format(details.dispatchDate!);
+    final emailDate = details.emailDate == null
+        ? 'N/A'
+        : DateFormat('dd-MMM-yyyy').format(details.emailDate!);
 
     return Card(
       elevation: 2,
@@ -520,21 +522,36 @@ class _SubmitDocumentsReturnScreenState
                     details.documentReturnStatus,
                   ),
                 ),
-                _detailRow(
-                  Icons.calendar_today_outlined,
-                  'Dispatch Date',
-                  dispatchDate,
-                ),
-                _detailRow(
-                  Icons.confirmation_number_outlined,
-                  'POD Number',
-                  details.podNumber,
-                ),
-                _detailRow(
-                  Icons.local_shipping_outlined,
-                  'Courier Name',
-                  details.courierName,
-                ),
+                if (isScannedCopy) ...[
+                  _detailRow(
+                    Icons.email_outlined,
+                    'Email Date',
+                    emailDate,
+                  ),
+                  _detailRow(
+                    Icons.subject_outlined,
+                    'Email Subject',
+                    (details.emailSubject?.trim().isNotEmpty ?? false)
+                        ? details.emailSubject!
+                        : 'N/A',
+                  ),
+                ] else ...[
+                  _detailRow(
+                    Icons.calendar_today_outlined,
+                    'Dispatch Date',
+                    dispatchDate,
+                  ),
+                  _detailRow(
+                    Icons.confirmation_number_outlined,
+                    'POD Number',
+                    details.podNumber,
+                  ),
+                  _detailRow(
+                    Icons.local_shipping_outlined,
+                    'Courier Name',
+                    details.courierName,
+                  ),
+                ],
                 _detailRow(
                   Icons.description_outlined,
                   'Transmission Mode',

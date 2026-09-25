@@ -1190,6 +1190,27 @@ class ApiClient {
     return decoded is Map<String, dynamic> ? decoded : null;
   }
 
+  Future<Map<String, dynamic>?> submitAdditionalDocumentRequirement(
+    Map<String, dynamic> payload,
+  ) async {
+    final url = Uri.parse(
+      '${legalNoticebaseUrl}SARFAESI/PhysicalFiling/additionalDocumentRequirement',
+    );
+    final response = await _client
+        .post(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': 'ht9AfQrZmJnu0Gxl',
+          },
+          body: json.encode(payload),
+        )
+        .timeout(_timeLimit);
+
+    final decoded = json.decode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : null;
+  }
+
   Future<Map<String, dynamic>?> requestWithdrawal(
     Map<String, dynamic> payload,
   ) async {

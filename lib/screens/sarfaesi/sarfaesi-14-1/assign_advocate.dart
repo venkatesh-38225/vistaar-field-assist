@@ -6,6 +6,7 @@ import 'package:re_kyc_mobile_app/models/physical_filing_response.dart';
 import 'package:re_kyc_mobile_app/service/api_client.dart';
 import 'package:re_kyc_mobile_app/utils/constant.dart';
 import 'package:re_kyc_mobile_app/utils/global_snackbar.dart';
+import 'package:re_kyc_mobile_app/widgets/custom_confirm_dialog.dart';
 import 'package:re_kyc_mobile_app/widgets/custom_text.dart';
 
 import 'physical_filing_logs_tab.dart';
@@ -24,7 +25,8 @@ class AssignAdvocateScreen extends StatefulWidget {
   State<AssignAdvocateScreen> createState() => _AssignAdvocateScreenState();
 }
 
-class _AssignAdvocateScreenState extends State<AssignAdvocateScreen> {
+class _AssignAdvocateScreenState extends State<AssignAdvocateScreen>
+    with SingleTickerProviderStateMixin {
   PhysicalFilingCase? _details;
   List<Advocate> _advocates = [];
   Advocate? _selectedAdvocate;
@@ -32,21 +34,49 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen> {
   String? _errorMessage;
   bool _isLoading = false;
   bool _isSubmitting = false;
+  bool _isSubmittingRequirement = false;
   bool _showAdvocateError = false;
   bool _showDateError = false;
-  String? _physicalDocumentsRequired;
 
-  bool get _showPhysicalDocumentsRequiredField {
-    final transmissionType =
-        _details?.documentTransmissionType?.trim().toLowerCase() ?? '';
-    return transmissionType == 'scanned copy';
-    // return true;
-  }
+  late AnimationController _alertAnimationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+  late Animation<double> _scaleAnimation;
+
+  bool get _showDocumentRequirementsBanner => _details != null;
 
   @override
   void initState() {
     super.initState();
+    _alertAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 550),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _alertAnimationController,
+      curve: Curves.easeOut,
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, -0.2),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _alertAnimationController,
+      curve: Curves.easeOutBack,
+    ));
+    _scaleAnimation = Tween<double>(
+      begin: 0.93,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _alertAnimationController,
+      curve: Curves.easeOutBack,
+    ));
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _alertAnimationController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -65,12 +95,53 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen> {
       final detailsResponse = results[0] as PhysicalFilingDetailsResponse?;
       final advocates = results[1] as List<Advocate>?;
       if (detailsResponse?.success == true && detailsResponse?.data != null) {
+        final PhysicalFilingCase details = detailsResponse!.data!;
+        final advocatesList = advocates ?? [];
+
+        Advocate? matchedAdvocate;
+        if (details.advocateId > 0) {
+          try {
+            matchedAdvocate = advocatesList.firstWhere(
+              (a) => a.id == details.advocateId,
+            );
+          } catch (_) {
+            if (details.advocateName.trim().isNotEmpty) {
+              matchedAdvocate = Advocate(
+                id: details.advocateId,
+                advocateName: details.advocateName.trim(),
+              );
+            }
+          }
+        } else if (details.advocateName.trim().isNotEmpty) {
+          try {
+            matchedAdvocate = advocatesList.firstWhere(
+              (a) =>
+                  a.advocateName.trim().toLowerCase() ==
+                  details.advocateName.trim().toLowerCase(),
+            );
+          } catch (_) {
+            matchedAdvocate = Advocate(
+              id: 0,
+              advocateName: details.advocateName.trim(),
+            );
+          }
+        }
+
         setState(() {
-          _details = detailsResponse!.data;
-          _advocates = advocates ?? [];
+          _details = details;
+          _advocates = advocatesList;
+          if (_selectedAdvocate == null && matchedAdvocate != null) {
+            _selectedAdvocate = matchedAdvocate;
+          }
+          if (_assignmentDate == null && details.advocateAssignmentDate != null) {
+            _assignmentDate = details.advocateAssignmentDate;
+          }
           _errorMessage =
               advocates == null ? 'Unable to load advocate masters' : null;
         });
+        if (_showDocumentRequirementsBanner) {
+          _alertAnimationController.forward(from: 0.0);
+        }
       } else {
         setState(() {
           _details = null;
@@ -90,6 +161,88 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen> {
       GlobalSnackbar.showError('Unable to load advocate assignment details');
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _confirmAndSubmitRequirement({
+    required String questionType,
+    required bool isYes,
+  }) async {
+    final details = _details;
+    if (details == null || details.caseId == 0 || !mounted) return;
+    final updatedBy = widget.updatedBy.trim();
+    if (updatedBy.isEmpty) {
+      GlobalSnackbar.showError('Updated user ID is unavailable');
+      return;
+    }
+
+    final bool isPhysicalDocs = questionType == 'Physical Documents';
+    final TextEditingController commentsController = TextEditingController();
+
+    try {
+      final confirmed = await CustomConfirmDialog.show(
+        context: context,
+        title: 'Confirm Requirement',
+        highlightItems: {
+          'Question': '$questionType Required?',
+          'Selected': isYes ? 'Yes' : 'No',
+        },
+        message: 'This will save your choice and return to the case list.',
+        confirmText: 'Submit',
+        showInputField: !isPhysicalDocs,
+        inputLabel: 'Comments',
+        inputHint: isYes
+            ? 'Enter reason for additional documents...'
+            : 'Enter comments (optional)...',
+        isInputRequired: !isPhysicalDocs && isYes,
+        inputController: commentsController,
+        inputValidationErrorMessage:
+            'Please enter reason for additional documents',
+      );
+
+      if (confirmed != true || !mounted) return;
+
+      final comments = commentsController.text.trim();
+
+      setState(() => _isSubmittingRequirement = true);
+      try {
+        final payload = <String, dynamic>{
+          'caseId': details.caseId,
+          if (isPhysicalDocs) 'requiresPhysicalDocuments': isYes,
+          if (!isPhysicalDocs) ...{
+            'requiresAdditionalDocuments': isYes,
+            if (comments.isNotEmpty) 'comments': comments,
+          },
+          'updatedBy': updatedBy,
+        };
+
+        final response = isPhysicalDocs
+            ? await ApiClient().submitPhysicalDocumentRequirement(payload)
+            : await ApiClient().submitAdditionalDocumentRequirement(payload);
+
+        if (!mounted) return;
+        if (response?['success'] == true) {
+          GlobalSnackbar.showSuccess(
+            response?['message']?.toString() ??
+                '$questionType requirement submitted successfully',
+          );
+          Get.back(result: true);
+        } else {
+          GlobalSnackbar.showError(
+            response?['message']?.toString() ?? 'Failed to submit requirement',
+          );
+        }
+      } catch (_) {
+        if (mounted) {
+          GlobalSnackbar.showError('Unable to submit requirement');
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isSubmittingRequirement = false);
+        }
+      }
+    } finally {
+      commentsController.dispose();
     }
   }
 
@@ -124,13 +277,6 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen> {
       return;
     }
 
-    // Validate physical documents required field if it's shown
-    if (_showPhysicalDocumentsRequiredField && 
-        (_physicalDocumentsRequired == null || _physicalDocumentsRequired!.trim().isEmpty)) {
-      GlobalSnackbar.showError('Please select physical documents required option');
-      return;
-    }
-
     if (details == null || details.caseId == 0) {
       GlobalSnackbar.showError('Case ID is unavailable');
       return;
@@ -140,27 +286,20 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen> {
       return;
     }
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await CustomConfirmDialog.show(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Assign Advocate'),
-        content: Text(
-          'Assign ${advocate.advocateName} to LAN ${details.lan}?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Constant.mediumBlueColor,
-            ),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Assign', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+      title: 'Assign Advocate',
+      highlightItems: {
+        'LAN': details.lan,
+        'Advocate': advocate.advocateName,
+        'Assignment Date': DateFormat('dd-MMM-yyyy').format(assignmentDate),
+      },
+      message:
+          'Are you sure you want to assign ${advocate.advocateName} to LAN ${details.lan}?',
+      confirmText: 'Assign Advocate',
+      icon: Icons.person_add_alt_1_outlined,
+      iconColor: Constant.mediumBlueColor,
+      iconBackgroundColor: const Color(0xFFE3F2FD),
     );
     if (confirmed != true || !mounted) return;
 
@@ -181,34 +320,6 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen> {
       final response = await ApiClient().assignPhysicalFilingAdvocate(payload);
       if (!mounted) return;
       if (response?['success'] == true) {
-        // If document transmission type is "Scanned Copy", call physical document requirement API
-        if (_showPhysicalDocumentsRequiredField) {
-          final requiresPhysicalDocuments = _physicalDocumentsRequired == 'Yes';
-          final documentRequirementPayload = <String, dynamic>{
-            'caseId': details.caseId,
-            'requiresPhysicalDocuments': requiresPhysicalDocuments,
-            'updatedBy': updatedBy,
-          };
-          print("Submitting physical document requirement payload: $documentRequirementPayload");
-          try {
-            final docResponse = await ApiClient()
-                .submitPhysicalDocumentRequirement(documentRequirementPayload);
-            if (!mounted) return;
-            if (docResponse?['success'] != true) {
-              GlobalSnackbar.showError(
-                docResponse?['message']?.toString() ??
-                    'Physical document requirement API response unclear',
-              );
-            }
-          } catch (_) {
-            if (mounted) {
-              GlobalSnackbar.showError(
-                'Physical document requirement submission failed, but advocate assigned',
-              );
-            }
-          }
-        }
-
         GlobalSnackbar.showSuccess(
           response?['message']?.toString() ?? 'Advocate assigned successfully',
         );
@@ -308,26 +419,12 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (_showDocumentRequirementsBanner) ...[
+              _buildDocumentRequirementsAlertBanner(),
+              const SizedBox(height: 14),
+            ],
             _buildCaseDetailsCard(_details!),
             const SizedBox(height: 18),
-             if (_showPhysicalDocumentsRequiredField) ...[
-              _buildLabel('Physical Documents Required? *'),
-              DropdownButtonFormField<String>(
-                value: _physicalDocumentsRequired,
-                isExpanded: true,
-                decoration: _inputDecoration('Select required option'),
-                items: const [
-                  DropdownMenuItem(value: 'Yes', child: Text('Yes')),
-                  DropdownMenuItem(value: 'No', child: Text('No')),
-                ],
-                validator: (value) =>
-                    value == null || value.trim().isEmpty
-                        ? 'Please select an option'
-                        : null,
-                onChanged: (value) => setState(() => _physicalDocumentsRequired = value),
-              ),
-              const SizedBox(height: 16),
-            ],
             const CustomText(
               text: 'Advocate Assignment',
               fontSize: 17,
@@ -335,7 +432,6 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen> {
               color: Color(0xFF102F54),
             ),
             const SizedBox(height: 14),
-           
             _buildLabel('Select Advocate *'),
             _buildAdvocateSelector(),
             if (_showAdvocateError) _buildError('Please select an advocate'),
@@ -380,10 +476,217 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen> {
     );
   }
 
+  Widget _buildDocumentRequirementsAlertBanner() {
+    final isScannedCopy =
+        _details?.documentTransmissionType?.trim().toLowerCase() ==
+            'scanned copy';
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: ScaleTransition(
+          scale: _scaleAnimation,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF8E1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: const Color(0xFFFFB74D),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFF57C00).withValues(alpha: 0.14),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFA000).withValues(alpha: 0.18),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.warning_amber_rounded,
+                        color: Color(0xFFE65100),
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const CustomText(
+                            text: 'Document Requirements',
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFBF360C),
+                          ),
+                          const SizedBox(height: 2),
+                          CustomText(
+                            text: isScannedCopy
+                                ? 'Scanned transmission mode detected (Optional)'
+                                : 'Document requirement confirmation (Optional)',
+                            fontSize: 11,
+                            color: const Color(0xFF8D4B00),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_isSubmittingRequirement)
+                      const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFFE65100),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                if (isScannedCopy) ...[
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: const Color(0xFFFFE082),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                          child: CustomText(
+                            text: 'Physical Documents Required?',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _buildChoiceButton(
+                          questionType: 'Physical Documents',
+                          label: 'Yes',
+                          isYes: true,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildChoiceButton(
+                          questionType: 'Physical Documents',
+                          label: 'No',
+                          isYes: false,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFFFFE082),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: CustomText(
+                          text: 'Additional Documents Required?',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildChoiceButton(
+                        questionType: 'Additional Documents',
+                        label: 'Yes',
+                        isYes: true,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildChoiceButton(
+                        questionType: 'Additional Documents',
+                        label: 'No',
+                        isYes: false,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChoiceButton({
+    required String questionType,
+    required String label,
+    required bool isYes,
+  }) {
+    return SizedBox(
+      height: 32,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(
+            color: Color(0xFFE65100),
+            width: 1.2,
+          ),
+          foregroundColor: const Color(0xFFE65100),
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+        ),
+        onPressed: (_isLoading || _isSubmitting || _isSubmittingRequirement)
+            ? null
+            : () => _confirmAndSubmitRequirement(
+                  questionType: questionType,
+                  isYes: isYes,
+                ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFFE65100),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildCaseDetailsCard(PhysicalFilingCase details) {
+    final isScannedCopy =
+        details.documentTransmissionType?.trim().toLowerCase() ==
+            'scanned copy';
     final dispatchDate = details.dispatchDate == null
         ? 'N/A'
         : DateFormat('dd-MMM-yyyy').format(details.dispatchDate!);
+    final emailDate = details.emailDate == null
+        ? 'N/A'
+        : DateFormat('dd-MMM-yyyy').format(details.emailDate!);
     return Card(
       elevation: 2,
       margin: EdgeInsets.zero,
@@ -421,21 +724,36 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen> {
             child: Column(
               children: [
                 _detailRow(Icons.info_outline, 'Status', details.status),
-                _detailRow(
-                  Icons.calendar_today_outlined,
-                  'Dispatch Date',
-                  dispatchDate,
-                ),
-                _detailRow(
-                  Icons.confirmation_number_outlined,
-                  'POD Number',
-                  details.podNumber,
-                ),
-                _detailRow(
-                  Icons.local_shipping_outlined,
-                  'Courier Name',
-                  details.courierName,
-                ),
+                if (isScannedCopy) ...[
+                  _detailRow(
+                    Icons.email_outlined,
+                    'Email Date',
+                    emailDate,
+                  ),
+                  _detailRow(
+                    Icons.subject_outlined,
+                    'Email Subject',
+                    (details.emailSubject?.trim().isNotEmpty ?? false)
+                        ? details.emailSubject!
+                        : 'N/A',
+                  ),
+                ] else ...[
+                  _detailRow(
+                    Icons.calendar_today_outlined,
+                    'Dispatch Date',
+                    dispatchDate,
+                  ),
+                  _detailRow(
+                    Icons.confirmation_number_outlined,
+                    'POD Number',
+                    details.podNumber,
+                  ),
+                  _detailRow(
+                    Icons.local_shipping_outlined,
+                    'Courier Name',
+                    details.courierName,
+                  ),
+                ],
                 _detailRow(
                   Icons.description_outlined,
                   'Transmission Mode',
@@ -496,27 +814,6 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen> {
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: Colors.black87,
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(6),
-        borderSide: BorderSide(color: Colors.grey.shade400),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(6),
-        borderSide: BorderSide(color: Colors.grey.shade400),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(6),
-        borderSide: const BorderSide(color: Constant.mediumBlueColor),
       ),
     );
   }

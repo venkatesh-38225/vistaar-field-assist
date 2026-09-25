@@ -5,6 +5,7 @@ import 'package:re_kyc_mobile_app/models/physical_filing_response.dart';
 import 'package:re_kyc_mobile_app/service/api_client.dart';
 import 'package:re_kyc_mobile_app/utils/constant.dart';
 import 'package:re_kyc_mobile_app/utils/global_snackbar.dart';
+import 'package:re_kyc_mobile_app/widgets/custom_confirm_dialog.dart';
 import 'package:re_kyc_mobile_app/widgets/custom_text.dart';
 
 import 'physical_filing_logs_tab.dart';
@@ -24,32 +25,57 @@ class PhysicalFilingEntryScreen extends StatefulWidget {
       _PhysicalFilingEntryScreenState();
 }
 
-class _PhysicalFilingEntryScreenState extends State<PhysicalFilingEntryScreen> {
+class _PhysicalFilingEntryScreenState extends State<PhysicalFilingEntryScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _physicalFilingDateController = TextEditingController();
   final _physicalFilingCaseNumberController = TextEditingController();
 
   PhysicalFilingCase? _details;
   DateTime? _physicalFilingDate;
-  String? _physicalDocumentsRequired;
   String? _errorMessage;
   bool _isLoading = false;
   bool _isSubmitting = false;
+  bool _isSubmittingRequirement = false;
 
-  bool get _showPhysicalDocumentsRequiredField {
-    final transmissionType =
-        _details?.documentTransmissionType?.trim().toLowerCase() ?? '';
-    return transmissionType == 'scanned copy';
-  }
+  late AnimationController _alertAnimationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+  late Animation<double> _scaleAnimation;
+
+  bool get _showDocumentRequirementsBanner => _details != null;
 
   @override
   void initState() {
     super.initState();
+    _alertAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 550),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _alertAnimationController,
+      curve: Curves.easeOut,
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, -0.2),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _alertAnimationController,
+      curve: Curves.easeOutBack,
+    ));
+    _scaleAnimation = Tween<double>(
+      begin: 0.93,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _alertAnimationController,
+      curve: Curves.easeOutBack,
+    ));
     _loadDetails();
   }
 
   @override
   void dispose() {
+    _alertAnimationController.dispose();
     _physicalFilingDateController.dispose();
     _physicalFilingCaseNumberController.dispose();
     super.dispose();
@@ -65,7 +91,23 @@ class _PhysicalFilingEntryScreenState extends State<PhysicalFilingEntryScreen> {
       final response = await ApiClient().getPhysicalFilingById(widget.caseId);
       if (!mounted) return;
       if (response?.success == true && response?.data != null) {
-        setState(() => _details = response!.data);
+        final PhysicalFilingCase details = response!.data!;
+        setState(() {
+          _details = details;
+          if (_physicalFilingDate == null && details.physicalFilingDate != null) {
+            _physicalFilingDate = details.physicalFilingDate;
+            _physicalFilingDateController.text =
+                DateFormat('dd-MM-yyyy').format(details.physicalFilingDate!);
+          }
+          if (_physicalFilingCaseNumberController.text.trim().isEmpty &&
+              details.physicalFilingCaseNumber.trim().isNotEmpty) {
+            _physicalFilingCaseNumberController.text =
+                details.physicalFilingCaseNumber.trim();
+          }
+        });
+        if (_showDocumentRequirementsBanner) {
+          _alertAnimationController.forward(from: 0.0);
+        }
       } else {
         setState(() {
           _details = null;
@@ -83,6 +125,88 @@ class _PhysicalFilingEntryScreenState extends State<PhysicalFilingEntryScreen> {
       GlobalSnackbar.showError('Unable to load filing details');
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _confirmAndSubmitRequirement({
+    required String questionType,
+    required bool isYes,
+  }) async {
+    final details = _details;
+    if (details == null || details.caseId == 0 || !mounted) return;
+    final updatedBy = widget.updatedBy.trim();
+    if (updatedBy.isEmpty) {
+      GlobalSnackbar.showError('Updated user ID is unavailable');
+      return;
+    }
+
+    final bool isPhysicalDocs = questionType == 'Physical Documents';
+    final TextEditingController commentsController = TextEditingController();
+
+    try {
+      final confirmed = await CustomConfirmDialog.show(
+        context: context,
+        title: 'Confirm Requirement',
+        highlightItems: {
+          'Question': '$questionType Required?',
+          'Selected': isYes ? 'Yes' : 'No',
+        },
+        message: 'This will save your choice and return to the case list.',
+        confirmText: 'Submit',
+        showInputField: !isPhysicalDocs,
+        inputLabel: 'Comments',
+        inputHint: isYes
+            ? 'Enter reason for additional documents...'
+            : 'Enter comments (optional)...',
+        isInputRequired: !isPhysicalDocs && isYes,
+        inputController: commentsController,
+        inputValidationErrorMessage:
+            'Please enter reason for additional documents',
+      );
+
+      if (confirmed != true || !mounted) return;
+
+      final comments = commentsController.text.trim();
+
+      setState(() => _isSubmittingRequirement = true);
+      try {
+        final payload = <String, dynamic>{
+          'caseId': details.caseId,
+          if (isPhysicalDocs) 'requiresPhysicalDocuments': isYes,
+          if (!isPhysicalDocs) ...{
+            'requiresAdditionalDocuments': isYes,
+            if (comments.isNotEmpty) 'comments': comments,
+          },
+          'updatedBy': updatedBy,
+        };
+
+        final response = isPhysicalDocs
+            ? await ApiClient().submitPhysicalDocumentRequirement(payload)
+            : await ApiClient().submitAdditionalDocumentRequirement(payload);
+
+        if (!mounted) return;
+        if (response?['success'] == true) {
+          GlobalSnackbar.showSuccess(
+            response?['message']?.toString() ??
+                '$questionType requirement submitted successfully',
+          );
+          Get.back(result: true);
+        } else {
+          GlobalSnackbar.showError(
+            response?['message']?.toString() ?? 'Failed to submit requirement',
+          );
+        }
+      } catch (_) {
+        if (mounted) {
+          GlobalSnackbar.showError('Unable to submit requirement');
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isSubmittingRequirement = false);
+        }
+      }
+    } finally {
+      commentsController.dispose();
     }
   }
 
@@ -114,13 +238,6 @@ class _PhysicalFilingEntryScreenState extends State<PhysicalFilingEntryScreen> {
       return;
     }
 
-    // Validate physical documents required field if it's shown
-    if (_showPhysicalDocumentsRequiredField && 
-        (_physicalDocumentsRequired == null || _physicalDocumentsRequired!.trim().isEmpty)) {
-      GlobalSnackbar.showError('Please select physical documents required option');
-      return;
-    }
-
     final details = _details;
     final physicalFilingDate = _physicalFilingDate;
     final updatedBy = widget.updatedBy.trim();
@@ -134,27 +251,23 @@ class _PhysicalFilingEntryScreenState extends State<PhysicalFilingEntryScreen> {
       return;
     }
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await CustomConfirmDialog.show(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Submit Physical Filing Details'),
-        content: Text(
-          'Submit Physical Filing details for LAN ${details.lan}?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Constant.mediumBlueColor,
-            ),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Submit', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+      title: 'Submit Physical Filing Details',
+      highlightItems: {
+        'LAN': details.lan,
+        if (details.courtName.trim().isNotEmpty)
+          'Court Name': details.courtName,
+        'Physical Filing Date':
+            DateFormat('dd-MMM-yyyy').format(physicalFilingDate),
+        'Case Number': _physicalFilingCaseNumberController.text.trim(),
+      },
+      message:
+          'Are you sure you want to submit Physical Filing details for LAN ${details.lan}?',
+      confirmText: 'Submit Filing',
+      icon: Icons.assignment_turned_in_outlined,
+      iconColor: Constant.mediumBlueColor,
+      iconBackgroundColor: const Color(0xFFE3F2FD),
     );
     if (confirmed != true || !mounted) return;
 
@@ -177,34 +290,6 @@ class _PhysicalFilingEntryScreenState extends State<PhysicalFilingEntryScreen> {
       final response = await ApiClient().submitPhysicalFiling(payload);
       if (!mounted) return;
       if (response?['success'] == true) {
-        // If document transmission type is "Scanned Copy", call physical document requirement API
-        if (_showPhysicalDocumentsRequiredField) {
-          final requiresPhysicalDocuments = _physicalDocumentsRequired == 'Yes';
-          final documentRequirementPayload = <String, dynamic>{
-            'caseId': details.caseId,
-            'requiresPhysicalDocuments': requiresPhysicalDocuments,
-            'updatedBy': updatedBy,
-          };
-          
-          try {
-            final docResponse = await ApiClient()
-                .submitPhysicalDocumentRequirement(documentRequirementPayload);
-            if (!mounted) return;
-            if (docResponse?['success'] != true) {
-              GlobalSnackbar.showError(
-                docResponse?['message']?.toString() ??
-                    'Physical document requirement API response unclear',
-              );
-            }
-          } catch (_) {
-            if (mounted) {
-              GlobalSnackbar.showError(
-                'Physical document requirement submission failed, but filing details submitted',
-              );
-            }
-          }
-        }
-
         GlobalSnackbar.showSuccess(
           response?['message']?.toString() ??
               'Physical filing details submitted successfully',
@@ -310,6 +395,10 @@ class _PhysicalFilingEntryScreenState extends State<PhysicalFilingEntryScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (_showDocumentRequirementsBanner) ...[
+                _buildDocumentRequirementsAlertBanner(),
+                const SizedBox(height: 14),
+              ],
               _buildCaseDetailsCard(_details!),
               const SizedBox(height: 18),
               const CustomText(
@@ -319,24 +408,6 @@ class _PhysicalFilingEntryScreenState extends State<PhysicalFilingEntryScreen> {
                 color: Color(0xFF102F54),
               ),
               const SizedBox(height: 14),
-              if (_showPhysicalDocumentsRequiredField) ...[
-                _buildLabel('Physical Documents Required? *'),
-                DropdownButtonFormField<String>(
-                  value: _physicalDocumentsRequired,
-                  isExpanded: true,
-                  decoration: _inputDecoration('Select required option'),
-                  items: const [
-                    DropdownMenuItem(value: 'Yes', child: Text('Yes')),
-                    DropdownMenuItem(value: 'No', child: Text('No')),
-                  ],
-                  validator: (value) =>
-                      value == null || value.trim().isEmpty
-                          ? 'Please select an option'
-                          : null,
-                  onChanged: (value) => setState(() => _physicalDocumentsRequired = value),
-                ),
-                const SizedBox(height: 16),
-              ],
               _buildLabel('Date of Physical Filing *'),
               _buildDateField(),
               const SizedBox(height: 16),
@@ -387,10 +458,217 @@ class _PhysicalFilingEntryScreenState extends State<PhysicalFilingEntryScreen> {
     );
   }
 
+  Widget _buildDocumentRequirementsAlertBanner() {
+    final isScannedCopy =
+        _details?.documentTransmissionType?.trim().toLowerCase() ==
+            'scanned copy';
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: ScaleTransition(
+          scale: _scaleAnimation,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF8E1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: const Color(0xFFFFB74D),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFF57C00).withValues(alpha: 0.14),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFA000).withValues(alpha: 0.18),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.warning_amber_rounded,
+                        color: Color(0xFFE65100),
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const CustomText(
+                            text: 'Document Requirements Alert',
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFBF360C),
+                          ),
+                          const SizedBox(height: 2),
+                          CustomText(
+                            text: isScannedCopy
+                                ? 'Scanned transmission mode detected (Optional)'
+                                : 'Document requirement confirmation (Optional)',
+                            fontSize: 11,
+                            color: const Color(0xFF8D4B00),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_isSubmittingRequirement)
+                      const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFFE65100),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                if (isScannedCopy) ...[
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: const Color(0xFFFFE082),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                          child: CustomText(
+                            text: 'Physical Documents Required?',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _buildChoiceButton(
+                          questionType: 'Physical Documents',
+                          label: 'Yes',
+                          isYes: true,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildChoiceButton(
+                          questionType: 'Physical Documents',
+                          label: 'No',
+                          isYes: false,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFFFFE082),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: CustomText(
+                          text: 'Additional Documents Required?',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildChoiceButton(
+                        questionType: 'Additional Documents',
+                        label: 'Yes',
+                        isYes: true,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildChoiceButton(
+                        questionType: 'Additional Documents',
+                        label: 'No',
+                        isYes: false,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChoiceButton({
+    required String questionType,
+    required String label,
+    required bool isYes,
+  }) {
+    return SizedBox(
+      height: 32,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(
+            color: Color(0xFFE65100),
+            width: 1.2,
+          ),
+          foregroundColor: const Color(0xFFE65100),
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+        ),
+        onPressed: (_isLoading || _isSubmitting || _isSubmittingRequirement)
+            ? null
+            : () => _confirmAndSubmitRequirement(
+                  questionType: questionType,
+                  isYes: isYes,
+                ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFFE65100),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildCaseDetailsCard(PhysicalFilingCase details) {
+    final isScannedCopy =
+        details.documentTransmissionType?.trim().toLowerCase() ==
+            'scanned copy';
     final dispatchDate = details.dispatchDate == null
         ? 'N/A'
         : DateFormat('dd-MMM-yyyy').format(details.dispatchDate!);
+    final emailDate = details.emailDate == null
+        ? 'N/A'
+        : DateFormat('dd-MMM-yyyy').format(details.emailDate!);
     return Card(
       elevation: 2,
       margin: EdgeInsets.zero,
@@ -445,11 +723,26 @@ class _PhysicalFilingEntryScreenState extends State<PhysicalFilingEntryScreen> {
                   'E-Filing Case No.',
                   details.eFilingCaseNumber,
                 ),
-                _detailRow(
-                  Icons.calendar_today_outlined,
-                  'Dispatch Date',
-                  dispatchDate,
-                ),
+                if (isScannedCopy) ...[
+                  _detailRow(
+                    Icons.email_outlined,
+                    'Email Date',
+                    emailDate,
+                  ),
+                  _detailRow(
+                    Icons.subject_outlined,
+                    'Email Subject',
+                    (details.emailSubject?.trim().isNotEmpty ?? false)
+                        ? details.emailSubject!
+                        : 'N/A',
+                  ),
+                ] else ...[
+                  _detailRow(
+                    Icons.calendar_today_outlined,
+                    'Dispatch Date',
+                    dispatchDate,
+                  ),
+                ],
                 _detailRow(
                   Icons.description_outlined,
                   'Transmission Mode',
