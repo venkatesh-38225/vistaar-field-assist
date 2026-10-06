@@ -133,7 +133,8 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen>
           if (_selectedAdvocate == null && matchedAdvocate != null) {
             _selectedAdvocate = matchedAdvocate;
           }
-          if (_assignmentDate == null && details.advocateAssignmentDate != null) {
+          if (_assignmentDate == null &&
+              details.advocateAssignmentDate != null) {
             _assignmentDate = details.advocateAssignmentDate;
           }
           _errorMessage =
@@ -215,6 +216,7 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen>
           },
           'updatedBy': updatedBy,
         };
+
 
         final response = isPhysicalDocs
             ? await ApiClient().submitPhysicalDocumentRequirement(payload)

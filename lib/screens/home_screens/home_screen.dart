@@ -23,6 +23,7 @@ import 'package:re_kyc_mobile_app/screens/onboard_vcp_screens/vcp_application.da
 import 'package:re_kyc_mobile_app/screens/onboard_vcp_screens/pending_dsa_list.dart';
 import 'package:re_kyc_mobile_app/screens/legal_billing/legal_billing_screen.dart';
 import 'package:re_kyc_mobile_app/screens/sarfaesi/sarfaesi_modules_screen.dart';
+import 'package:re_kyc_mobile_app/screens/voice_of_team/voice_of_team_screen.dart';
 import 'package:re_kyc_mobile_app/service/api_client.dart';
 import 'package:re_kyc_mobile_app/service/hive_local_storage.dart';
 import 'package:re_kyc_mobile_app/utils/constant.dart';
@@ -93,11 +94,13 @@ class _HomeScreenState extends State<HomeScreen>
   bool isLegalNoticeMenuAvailable = false;
   bool isLegalBillingMenuAvailable = false;
   bool isSARFAESIMenuAvailable = false;
+  bool isVoiceOfTeamMenuAvailable = false;
   List<GetRoleBasedModule> sarfaesiModules = [];
   bool isLoading = false;
   String currentVersion = '';
   String legalBillingAccess = '';
   String legalNoticeAccess = '';
+  String voiceOfTeamAccess = '';
 
   @override
   void didChangeDependencies() {
@@ -165,6 +168,7 @@ class _HomeScreenState extends State<HomeScreen>
     isLegalNoticeMenuAvailable = normalizedModules.contains("LEGAL NOTICE");
     isLegalBillingMenuAvailable = normalizedModules.contains("LEGAL BILLING");
     isSARFAESIMenuAvailable = sarfaesiModules.isNotEmpty;
+    isVoiceOfTeamMenuAvailable = normalizedModules.contains("VOICE OF TEAM");
   }
 
   List<SpeedDialChild> addDefaultSpeedDialMenu() {
@@ -541,6 +545,25 @@ class _HomeScreenState extends State<HomeScreen>
                           backgroundColor: Colors.white,
                         )
                       : SizedBox(
+                          height: 0,
+                        ),
+                  isVoiceOfTeamMenuAvailable == true
+                      ? menuButton(
+                          assetPath: 'assets/icons/voice_of_team.png',
+                          label: "Voice of Team",
+                          onPressed: () {
+                            if (profileResponse != null) {
+                              Get.to(() => VoiceOfTeamScreen(
+                                    profile: profileResponse!,
+                                    access: voiceOfTeamAccess,
+                                  ));
+                            }
+                          },
+                          margin: const EdgeInsets.symmetric(
+                              horizontal: 1, vertical: 5),
+                          backgroundColor: Colors.white,
+                        )
+                      : const SizedBox(
                           height: 0,
                         ),
 
@@ -1694,6 +1717,7 @@ class _HomeScreenState extends State<HomeScreen>
       if (response.modules.isNotEmpty) {
         legalBillingAccess = '';
         legalNoticeAccess = '';
+        voiceOfTeamAccess = '';
         sarfaesiModules = response.modulesList.where((module) {
           return (module.module ?? '')
               .trim()
@@ -1707,6 +1731,9 @@ class _HomeScreenState extends State<HomeScreen>
           }
           if (moduleName == "LEGAL NOTICE") {
             legalNoticeAccess = m.access ?? '';
+          }
+          if (moduleName == "VOICE OF TEAM") {
+            voiceOfTeamAccess = m.access ?? '';
           }
         }
         fetchMenuItems(response.modules);

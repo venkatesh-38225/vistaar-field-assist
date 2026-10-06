@@ -30,6 +30,7 @@ import '../models/download_notice_res.dart';
 import '../models/legal_billing_res.dart';
 import '../models/legal_masters.dart';
 import '../models/legal_billing_details_res.dart';
+import '../models/voice_of_team_models.dart';
 
 class ApiClient {
   final _client = http.Client();
@@ -602,12 +603,18 @@ class ApiClient {
 
       if (responseBody['success'] == true && responseBody['data'] != null) {
         var data = responseBody['data'];
+
         return LoanDetailsResponse(
           lan: data['lan']?.toString(),
           fullName: data['custName']?.toString(),
           custId: data['custId']?.toString(),
           totalOutstanding: data['totalOutstanding']?.toString(),
           dpd: data['dpd']?.toString(),
+          state: data['state']?.toString(),
+          disbursementAmount: data['disbAmount']?.toString(),
+          disbursementDate: data['disbDate']?.toString(),
+          maturityDate: data['maturityDate']?.toString(),
+          loanAmount: data['loanAmount']?.toString(),
           mobile: data['mobile']?.toString(),
           alternateMobile: data['alternateMobile']?.toString(),
           residentialAddress: data['residentialAddress']?.toString(),
@@ -1550,5 +1557,271 @@ class ApiClient {
       print('downloadSarfaesiFile error: $e');
       return null;
     }
+  }
+
+  // Voice of Team (VOT) APIs
+
+  Future<VotLanResponse?> getVotLansByUser(String empId) async {
+    final url = Uri.parse('${legalNoticebaseUrl}VOT/getLansByUser').replace(
+      queryParameters: {'empId': empId},
+    );
+    print("url: ${url}");
+    try {
+      final response = await _client.get(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": _vistaarApiKey,
+        },
+      ).timeout(_timeLimit);
+
+
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          return VotLanResponse.fromJson(decoded);
+        }
+      }
+    } catch (e) {
+      print("getVotLansByUser error: $e");
+    }
+    return null;
+  }
+
+  Future<VotCaseResponse?> getVotCasesByUser({
+    required String empId,
+    required String role,
+    required String status,
+  }) async {
+    final url = Uri.parse('${legalNoticebaseUrl}VOT/getCasesByUser').replace(
+      queryParameters: {
+        'empId': empId,
+        'role': role,
+        'status': status,
+      },
+    );
+    try {
+      final response = await _client.get(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": _vistaarApiKey,
+        },
+      ).timeout(_timeLimit);
+
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          return VotCaseResponse.fromJson(decoded);
+        }
+      }
+    } catch (e) {
+      print("getVotCasesByUser error: $e");
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> createVoiceOfTeam(
+      Map<String, dynamic> jsonObject) async {
+    return createVoiceOfTeamCase(jsonObject);
+  }
+
+  Future<Map<String, dynamic>?> createVoiceOfTeamCase(
+      Map<String, dynamic> jsonObject) async {
+    final url = Uri.parse('${legalNoticebaseUrl}VOT/createCase');
+    try {
+      final response = await _client
+          .post(
+            url,
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": _vistaarApiKey,
+            },
+            body: jsonEncode(jsonObject),
+          )
+          .timeout(_timeLimit);
+
+      print("createVoiceOfTeamCase URL: $url");
+      print("Payload: ${jsonObject}");
+      print("createVoiceOfTeamCase status: ${response.statusCode}");
+      print("createVoiceOfTeamCase body: ${response.body}");
+      final responseData = jsonDecode(response.body);
+      return {
+        "statusCode": response.statusCode,
+        "data": responseData,
+      };
+    } catch (e) {
+      print("createVoiceOfTeamCase error: $e");
+      return {
+        "statusCode": 500,
+        "data": {"message": e.toString()},
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>?> uploadVoiceOfTeamFile({
+    required dynamic caseId,
+    required String fileType,
+    required File file,
+    required String createdBy,
+  }) async {
+    try {
+      final url = Uri.parse('${legalNoticebaseUrl}VOT/uploadFile');
+      var request = http.MultipartRequest('POST', url);
+
+      request.headers.addAll({
+        'x-api-key': _vistaarApiKey,
+        'accept': '*/*',
+      });
+
+      request.fields['CaseId'] = caseId.toString();
+      request.fields['FileType'] = fileType;
+      request.fields['createdBy'] = createdBy;
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'File',
+          file.path,
+        ),
+      );
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      print('UPLOAD VOT FILE STATUS: ${response.statusCode}');
+      print('UPLOAD VOT FILE RESPONSE: ${response.body}');
+
+      dynamic responseData;
+      try {
+        responseData = json.decode(response.body);
+      } catch (e) {
+        responseData = {"message": response.body};
+      }
+
+      return {
+        "statusCode": response.statusCode,
+        "data": responseData,
+      };
+    } catch (e) {
+      print("uploadVoiceOfTeamFile error: $e");
+      return {
+        "statusCode": 500,
+        "data": {"message": e.toString()},
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>?> updateVoiceOfTeamReview(
+      Map<String, dynamic> jsonObject) async {
+    final url = Uri.parse('${legalNoticebaseUrl}VOT/review');
+    try {
+      final response = await _client
+          .post(
+            url,
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": _vistaarApiKey,
+            },
+            body: jsonEncode(jsonObject),
+          )
+          .timeout(_timeLimit);
+
+      print("updateVoiceOfTeamReview status: ${response.statusCode}");
+      print("updateVoiceOfTeamReview body: ${response.body}");
+      final responseData = jsonDecode(response.body);
+      return {
+        "statusCode": response.statusCode,
+        "data": responseData,
+      };
+    } catch (e) {
+      print("updateVoiceOfTeamReview error: $e");
+      return {
+        "statusCode": 500,
+        "data": {"message": e.toString()},
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>?> submitVoiceOfTeamZdshReview(
+      Map<String, dynamic> jsonObject) async {
+    final url = Uri.parse('${legalNoticebaseUrl}VOT/zdshReview');
+    try {
+      final response = await _client
+          .post(
+            url,
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": _vistaarApiKey,
+            },
+            body: jsonEncode(jsonObject),
+          )
+          .timeout(_timeLimit);
+
+      print("submitVoiceOfTeamZdshReview URL: $url");
+      print("submitVoiceOfTeamZdshReview status: ${response.statusCode}");
+      print("submitVoiceOfTeamZdshReview body: ${response.body}");
+      final responseData = jsonDecode(response.body);
+      return {
+        "statusCode": response.statusCode,
+        "data": responseData,
+      };
+    } catch (e) {
+      print("submitVoiceOfTeamZdshReview error: $e");
+      return {
+        "statusCode": 500,
+        "data": {"message": e.toString()},
+      };
+    }
+  }
+
+  Future<VotCaseDetailsResponse?> getVoiceOfTeamCaseById(int caseId) async {
+    final url = Uri.parse('${legalNoticebaseUrl}VOT/getCaseById/$caseId');
+    try {
+      final response = await _client.get(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": _vistaarApiKey,
+        },
+      ).timeout(_timeLimit);
+
+      print("getVoiceOfTeamCaseById URL: $url");
+      print("getVoiceOfTeamCaseById status: ${response.statusCode}");
+      print("getVoiceOfTeamCaseById body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          return VotCaseDetailsResponse.fromJson(decoded);
+        }
+      }
+    } catch (e) {
+      print("getVoiceOfTeamCaseById error: $e");
+    }
+    return null;
+  }
+
+  Future<http.Response?> downloadVoiceOfTeamFile(String fileName) async {
+    final url = Uri.parse('${legalNoticebaseUrl}VOT/downloadFile').replace(
+      queryParameters: {'fileName': fileName},
+    );
+    try {
+      final response = await _client.get(
+        url,
+        headers: {
+          "x-api-key": _vistaarApiKey,
+        },
+      ).timeout(_timeLimit);
+
+      print("downloadVoiceOfTeamFile URL: $url");
+      print("downloadVoiceOfTeamFile status: ${response.statusCode}");
+
+      if (response.statusCode == 200) {
+        return response;
+      }
+    } catch (e) {
+      print("downloadVoiceOfTeamFile error: $e");
+    }
+    return null;
   }
 }

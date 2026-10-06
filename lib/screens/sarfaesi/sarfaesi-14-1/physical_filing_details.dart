@@ -274,14 +274,8 @@ class _PhysicalFilingDetailsScreenState
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 28),
         children: [
           _buildCaseCard(details),
-          if (details.hasWithdrawalDetails) ...[
-            const SizedBox(height: 14),
-            _buildWithdrawalCard(details),
-          ],
-          if (details.hasDocumentReturnDetails) ...[
-            const SizedBox(height: 14),
-            _buildDocumentReturnCard(details),
-          ],
+          const SizedBox(height: 14),
+          _buildChecklistSection(details),
           if (details.hasAdvocateDetails) ...[
             const SizedBox(height: 14),
             _buildAdvocateCard(details),
@@ -290,8 +284,14 @@ class _PhysicalFilingDetailsScreenState
             const SizedBox(height: 14),
             _buildFilingCard(details),
           ],
-          const SizedBox(height: 14),
-          _buildChecklistSection(details),
+          if (details.hasWithdrawalDetails) ...[
+            const SizedBox(height: 14),
+            _buildWithdrawalCard(details),
+          ],
+          if (details.hasDocumentReturnDetails) ...[
+            const SizedBox(height: 14),
+            _buildDocumentReturnCard(details),
+          ],
           const SizedBox(height: 14),
           _buildAuditCard(details),
         ],

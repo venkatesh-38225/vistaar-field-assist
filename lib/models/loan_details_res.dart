@@ -12,6 +12,11 @@ class LoanDetailsResponse {
   final String? alternateMobile;
   final String? residentialAddress;
   final String? propertyAddress;
+  final String? state;
+  final String? disbursementAmount;
+  final String? disbursementDate;
+  final String? maturityDate;
+  final String? loanAmount;
 
   LoanDetailsResponse({
     this.lan,
@@ -26,7 +31,12 @@ class LoanDetailsResponse {
     this.mobile,
     this.alternateMobile,
     this.propertyAddress,
-    this.residentialAddress
+    this.residentialAddress,
+    this.state,
+    this.disbursementAmount,
+    this.disbursementDate,
+    this.maturityDate,
+    this.loanAmount,
   });
 
   factory LoanDetailsResponse.fromJson(Map<String, dynamic> json) {
@@ -44,13 +54,17 @@ class LoanDetailsResponse {
       alternateMobile: json['alternateMobile']?.toString(),
       residentialAddress: json['residentialAddress']?.toString(),
       propertyAddress: json['propertyAddress']?.toString(),
+      state: json['state']?.toString(),
+      disbursementAmount: json['disbAmount']?.toString(),
+      disbursementDate: json['disbDate']?.toString(),
+      maturityDate: json['maturityDate']?.toString(),
+      loanAmount: json['loanAmount']?.toString(),
     );
   }
 
-
   Map<String, dynamic> toJson() {
     return {
-      'lan':lan,
+      'lan': lan,
       'fullName': fullName,
       'branch': branch?.toJson(),
       'pos': pos,
