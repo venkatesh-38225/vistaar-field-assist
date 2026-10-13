@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <defs>
+    <linearGradient id="scalesGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#5B21B6"/>
+    </linearGradient>
+    <linearGradient id="goldBeam" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FBBF24"/>
+      <stop offset="50%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+  </defs>
+  <!-- Background glow circle -->
+  <circle cx="40" cy="40" r="34" fill="#F5F3FF"/>
+  <!-- Central Pillar & Finial -->
+  <circle cx="40" cy="18" r="4.5" fill="url(#goldBeam)"/>
+  <rect x="38" y="21" width="4" height="42" rx="2" fill="url(#scalesGrad)"/>
+  <!-- Base Pedestal -->
+  <path d="M26 66 L54 66 L50 60 L30 60 Z" fill="url(#scalesGrad)"/>
+  <rect x="22" y="65" width="36" height="4" rx="2" fill="#4C1D95"/>
+  <!-- Horizontal Beam -->
+  <path d="M16 26 C28 25, 52 25, 64 26" fill="none" stroke="url(#goldBeam)" stroke-width="4.5" stroke-linecap="round"/>
+  <!-- Left Pan Strings -->
+  <path d="M17 28 L11 44 M17 28 L23 44" fill="none" stroke="#9CA3AF" stroke-width="1.8"/>
+  <!-- Left Pan -->
+  <path d="M10 44 Q17 52 24 44 Z" fill="url(#goldBeam)"/>
+  <!-- Right Pan Strings -->
+  <path d="M63 28 L57 44 M63 28 L69 44" fill="none" stroke="#9CA3AF" stroke-width="1.8"/>
+  <!-- Right Pan -->
+  <path d="M56 44 Q63 52 70 44 Z" fill="url(#goldBeam)"/>
+</svg>

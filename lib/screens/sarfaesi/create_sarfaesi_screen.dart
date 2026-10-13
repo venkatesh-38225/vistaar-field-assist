@@ -47,11 +47,13 @@ class CreateSarfaesiScreen extends StatefulWidget {
     required this.employeeId,
     required this.branchCode,
     this.initialLan,
+    this.initialCategory,
   });
 
   final String employeeId;
   final String branchCode;
   final String? initialLan;
+  final String? initialCategory;
 
   @override
   State<CreateSarfaesiScreen> createState() => _CreateSarfaesiScreenState();
@@ -68,6 +70,7 @@ class _CreateSarfaesiScreenState extends State<CreateSarfaesiScreen> {
 
   // Data fields populated after LAN search (stored as strings for display)
   String _lan = '';
+  String _category = '';
   String _customerName = '';
   String _propertyAddress = ''; // kept for update payload (joined)
   List<Map<String, dynamic>> _collaterals = []; // from getCollateralsByLan
@@ -176,6 +179,7 @@ class _CreateSarfaesiScreenState extends State<CreateSarfaesiScreen> {
   bool isMappedLansLoading = false;
 
   List<String> mappedLans = [];
+  List<Map<String, String>> mappedLanDetails = [];
   int? _createdReqId;
   String? _gpsInfo; // Stores lat,lng display string
 
@@ -186,6 +190,9 @@ class _CreateSarfaesiScreenState extends State<CreateSarfaesiScreen> {
   void initState() {
     super.initState();
     lanFocusNode = FocusNode();
+    if (widget.initialCategory != null && widget.initialCategory!.isNotEmpty) {
+      _category = widget.initialCategory!;
+    }
     if (widget.initialLan != null && widget.initialLan!.isNotEmpty) {
       lanController.text = widget.initialLan!;
       searchLanDetails();
@@ -198,14 +205,23 @@ class _CreateSarfaesiScreenState extends State<CreateSarfaesiScreen> {
     if (!mounted) return;
     setState(() => isMappedLansLoading = true);
     try {
-      final lans = await ApiClient().getMappedLans(
+      final details = await ApiClient().getMappedLansWithDetails(
         widget.employeeId,
-        sectionCode: 'SARFAESI13',
+        sectionCode: '13_4',
       );
 
       if (!mounted) return;
       setState(() {
-        mappedLans = lans ?? [];
+        if (details != null) {
+          mappedLanDetails = details;
+          mappedLans = details
+              .map((e) => e['lan'] ?? '')
+              .where((l) => l.isNotEmpty)
+              .toList();
+        } else {
+          mappedLanDetails = [];
+          mappedLans = [];
+        }
         isMappedLansLoading = false;
       });
     } catch (e) {
@@ -225,6 +241,7 @@ class _CreateSarfaesiScreenState extends State<CreateSarfaesiScreen> {
 
   void _clearDetails() {
     _lan = '';
+    _category = widget.initialCategory ?? '';
     _customerName = '';
     _propertyAddress = '';
     _residentialAddress = '';
@@ -330,6 +347,16 @@ class _CreateSarfaesiScreenState extends State<CreateSarfaesiScreen> {
       if (!mounted) return;
 
       if (response is LoanDetailsResponse && response.fullName != null) {
+        if (_category.isEmpty && mappedLanDetails.isNotEmpty) {
+          for (final m in mappedLanDetails) {
+            if ((m['lan'] ?? '').toUpperCase() == lan.toUpperCase()) {
+              if ((m['category'] ?? '').isNotEmpty) {
+                _category = m['category']!;
+              }
+              break;
+            }
+          }
+        }
         setState(() {
           _lan = response.lan ?? '';
           _customerName = response.fullName ?? '';
@@ -993,6 +1020,9 @@ class _CreateSarfaesiScreenState extends State<CreateSarfaesiScreen> {
       'isPossessionTaken': selectedPossessionStatus == 'Yes',
       'createdBy': widget.employeeId,
     };
+    if (_category.isNotEmpty) {
+      payload['category'] = _category;
+    }
 
     if (selectedPossessionStatus == 'No') {
       payload['nonPossessionReason'] = selectedNoPossessionReason;
@@ -1089,6 +1119,9 @@ class _CreateSarfaesiScreenState extends State<CreateSarfaesiScreen> {
       'isPossessionTaken': selectedPossessionStatus == "Yes" ? true : false,
       'createdBy': widget.employeeId,
     };
+    if (_category.isNotEmpty) {
+      payload['category'] = _category;
+    }
 
     if (selectedPossessionStatus == 'No') {
       payload['nonPossessionReason'] = selectedNoPossessionReason;
@@ -1436,6 +1469,8 @@ class _CreateSarfaesiScreenState extends State<CreateSarfaesiScreen> {
                 _buildDetailsCard([
                   _buildDetailRow('LAN', _lan),
                   _buildDetailRow('Customer Name', _customerName),
+                  if (_category.isNotEmpty)
+                    _buildDetailRow('Category', _category),
                   _buildDetailRow('Customer Contact', _customerContact),
                   _buildDetailRow('Alternate Contact', _alternateContact),
                   _buildDetailRow('POS', _pos),

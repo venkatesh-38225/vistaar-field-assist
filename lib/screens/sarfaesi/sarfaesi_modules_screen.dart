@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:re_kyc_mobile_app/models/get_roll_based_modules.dart';
 import 'package:re_kyc_mobile_app/models/profile_response.dart';
@@ -8,7 +9,7 @@ import 'package:re_kyc_mobile_app/utils/constant.dart';
 import 'package:re_kyc_mobile_app/utils/global_snackbar.dart';
 import 'package:re_kyc_mobile_app/widgets/custom_text.dart';
 
-class SarfaesiModulesScreen extends StatelessWidget {
+class SarfaesiModulesScreen extends StatefulWidget {
   const SarfaesiModulesScreen({
     super.key,
     required this.profile,
@@ -18,9 +19,33 @@ class SarfaesiModulesScreen extends StatelessWidget {
   final ProfileResponse profile;
   final List<GetRoleBasedModule> modules;
 
+  @override
+  State<SarfaesiModulesScreen> createState() => _SarfaesiModulesScreenState();
+}
+
+class _SarfaesiModulesScreenState extends State<SarfaesiModulesScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 750),
+    );
+    _animController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
   List<GetRoleBasedModule> get _uniqueModules {
     final seenNames = <String>{};
-    return modules.where((module) {
+    return widget.modules.where((module) {
       final normalizedName = (module.module ?? '').trim().toUpperCase();
       return normalizedName.isNotEmpty && seenNames.add(normalizedName);
     }).toList();
@@ -31,19 +56,27 @@ class SarfaesiModulesScreen extends StatelessWidget {
     final normalizedName = moduleName.toUpperCase();
 
     if (normalizedName == 'SARFAESI 13(4)') {
-      Get.to(() => SarfaesiScreen(
-            profile: profile,
-            access: module.access ?? '',
-          ));
+      Get.to(
+        () => SarfaesiScreen(
+          profile: widget.profile,
+          access: module.access ?? '',
+        ),
+        transition: Constant.getXTransition,
+        duration: const Duration(milliseconds: 320),
+      );
       return;
     }
 
     if (normalizedName.contains('SARFAESI 14') &&
         normalizedName.contains('PHYSICAL FILING')) {
-      Get.to(() => Sarfaesi14PhysicalFilingScreen(
-            profile: profile,
-            access: module.access ?? '',
-          ));
+      Get.to(
+        () => Sarfaesi14PhysicalFilingScreen(
+          profile: widget.profile,
+          access: module.access ?? '',
+        ),
+        transition: Constant.getXTransition,
+        duration: const Duration(milliseconds: 320),
+      );
       return;
     }
 
@@ -59,7 +92,7 @@ class SarfaesiModulesScreen extends StatelessWidget {
       return const _ModuleVisual(
         tabLabel: 'NOTICE',
         description: 'Manage possession notice cases',
-        imageUrl: 'https://img.icons8.com/fluency/160/contract.png',
+        svgAssetPath: 'assets/icons/sarfaesi_notice.svg',
         accentColor: Color(0xFFE6A10A),
         softColor: Color(0xFFFFF7E5),
         fallbackIcon: Icons.description_outlined,
@@ -70,18 +103,16 @@ class SarfaesiModulesScreen extends StatelessWidget {
       return const _ModuleVisual(
         tabLabel: 'FILING',
         description: 'LAN filing and document checklist',
-        imageUrl: 'https://img.icons8.com/fluency/160/courthouse.png',
+        svgAssetPath: 'assets/icons/sarfaesi_court.svg',
         accentColor: Color(0xFF1769D2),
         softColor: Color(0xFFEAF3FF),
         fallbackIcon: Icons.account_balance_outlined,
       );
     }
 
-    const fallbackImages = [
-      'https://img.icons8.com/fluency/160/scales.png',
-      'https://img.icons8.com/fluency/160/documents.png',
-      'https://img.icons8.com/fluency/160/law.png',
-      'https://img.icons8.com/fluency/160/opened-folder.png',
+    const fallbackSvgs = [
+      'assets/icons/sarfaesi_scales.svg',
+      'assets/icons/sarfaesi_folder.svg',
     ];
     const accentColors = [
       Color(0xFF5B4BC4),
@@ -94,10 +125,55 @@ class SarfaesiModulesScreen extends StatelessWidget {
     return _ModuleVisual(
       tabLabel: 'MODULE ${index + 1}',
       description: 'Open SARFAESI workflow',
-      imageUrl: fallbackImages[index % fallbackImages.length],
+      svgAssetPath: fallbackSvgs[index % fallbackSvgs.length],
       accentColor: color,
       softColor: color.withValues(alpha: 0.09),
       fallbackIcon: Icons.folder_copy_outlined,
+    );
+  }
+
+  Widget _buildAnimatedModuleCard({
+    required GetRoleBasedModule module,
+    required _ModuleVisual visual,
+    required int index,
+    required int totalCount,
+  }) {
+    final double startTime = (index * 0.15).clamp(0.0, 0.6);
+    final double endTime = (startTime + 0.45).clamp(0.0, 1.0);
+
+    final animation = CurvedAnimation(
+      parent: _animController,
+      curve: Interval(
+        startTime,
+        endTime,
+        curve: Curves.easeOutCubic,
+      ),
+    );
+
+    final slideAnimation = Tween<Offset>(
+      begin: const Offset(0.0, 0.18),
+      end: Offset.zero,
+    ).animate(animation);
+
+    final fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(animation);
+
+    final scaleAnimation = Tween<double>(
+      begin: 0.95,
+      end: 1.0,
+    ).animate(animation);
+
+    return FadeTransition(
+      opacity: fadeAnimation,
+      child: SlideTransition(
+        position: slideAnimation,
+        child: ScaleTransition(
+          scale: scaleAnimation,
+          child: _buildModuleCard(module, visual),
+        ),
+      ),
     );
   }
 
@@ -157,33 +233,41 @@ class SarfaesiModulesScreen extends StatelessWidget {
             )
           else ...[
             for (var index = 0; index < sarfaesiModules.length; index++) ...[
-              _buildModuleCard(
-                sarfaesiModules[index],
-                _visualFor(sarfaesiModules[index], index),
+              _buildAnimatedModuleCard(
+                module: sarfaesiModules[index],
+                visual: _visualFor(sarfaesiModules[index], index),
+                index: index,
+                totalCount: sarfaesiModules.length,
               ),
               if (index != sarfaesiModules.length - 1)
                 const SizedBox(height: 12),
             ],
             const SizedBox(height: 22),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.verified_user_outlined,
-                  size: 20,
-                  color: Constant.mediumBlueColor,
-                ),
-                SizedBox(width: 8),
-                Flexible(
-                  child: CustomText(
-                    text: 'Modules shown according to your role',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.black54,
-                    textAlign: TextAlign.center,
+            FadeTransition(
+              opacity: CurvedAnimation(
+                parent: _animController,
+                curve: const Interval(0.4, 1.0, curve: Curves.easeOut),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.verified_user_outlined,
+                    size: 20,
+                    color: Constant.mediumBlueColor,
                   ),
-                ),
-              ],
+                  SizedBox(width: 8),
+                  Flexible(
+                    child: CustomText(
+                      text: 'Modules shown according to your role',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.black54,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ],
@@ -232,10 +316,10 @@ class SarfaesiModulesScreen extends StatelessWidget {
                         color: visual.softColor,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Image.network(
-                        visual.imageUrl,
+                      child: SvgPicture.asset(
+                        visual.svgAssetPath,
                         fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => Icon(
+                        placeholderBuilder: (_) => Icon(
                           visual.fallbackIcon,
                           size: 42,
                           color: visual.accentColor,
@@ -319,7 +403,7 @@ class _ModuleVisual {
   const _ModuleVisual({
     required this.tabLabel,
     required this.description,
-    required this.imageUrl,
+    required this.svgAssetPath,
     required this.accentColor,
     required this.softColor,
     required this.fallbackIcon,
@@ -327,7 +411,7 @@ class _ModuleVisual {
 
   final String tabLabel;
   final String description;
-  final String imageUrl;
+  final String svgAssetPath;
   final Color accentColor;
   final Color softColor;
   final IconData fallbackIcon;

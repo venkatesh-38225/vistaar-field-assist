@@ -284,6 +284,8 @@ class SarfaesiManagementScreenState extends State<SarfaesiManagementScreen>
             children: [
               _buildRow('LAN', tx.lan ?? '—'),
               _buildRow('Customer Name', tx.customerName ?? '—'),
+              if ((tx.category ?? '').isNotEmpty)
+                _buildRow('Category', tx.category!),
               _buildRow('Mobile', tx.mobile ?? '—'),
               if ((tx.alternateMobile ?? '').isNotEmpty)
                 _buildRow('Alternate Mobile', tx.alternateMobile!),

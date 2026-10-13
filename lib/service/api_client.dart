@@ -31,6 +31,7 @@ import '../models/legal_billing_res.dart';
 import '../models/legal_masters.dart';
 import '../models/legal_billing_details_res.dart';
 import '../models/voice_of_team_models.dart';
+import '../models/state_city_pincode_model.dart';
 
 class ApiClient {
   final _client = http.Client();
@@ -1505,15 +1506,20 @@ class ApiClient {
         return list.map<Map<String, String>>((e) {
           if (e is Map) {
             return {
-              'lan': e['lan']?.toString() ?? '',
+              'lan': e['lan']?.toString() ?? e['LAN']?.toString() ?? '',
               'customerName': e['customerName']?.toString() ??
                   e['custName']?.toString() ??
+                  e['CustName']?.toString() ??
+                  '',
+              'category': e['category']?.toString() ??
+                  e['Category']?.toString() ??
                   '',
             };
           }
           return {
             'lan': e.toString(),
             'customerName': '',
+            'category': '',
           };
         }).toList();
       }
@@ -1574,7 +1580,6 @@ class ApiClient {
           "x-api-key": _vistaarApiKey,
         },
       ).timeout(_timeLimit);
-
 
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body);
@@ -1823,5 +1828,88 @@ class ApiClient {
       print("downloadVoiceOfTeamFile error: $e");
     }
     return null;
+  }
+
+  Future<List<StateItem>> getStateList() async {
+    try {
+      var url = Uri.parse('${legalNoticebaseUrl}Shared/GetStateList');
+      final response = await _client.get(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": _vistaarApiKey,
+        },
+      ).timeout(_timeLimit);
+
+      if (response.statusCode == 200) {
+        var responseBody = json.decode(response.body);
+        if ((responseBody['status'] == true ||
+                responseBody['success'] == true) &&
+            responseBody['data'] != null) {
+          return (responseBody['data'] as List)
+              .map((e) => StateItem.fromJson(e))
+              .toList();
+        }
+      }
+    } catch (e) {
+      print("getStateList error: $e");
+    }
+    return [];
+  }
+
+  Future<List<CityItem>> getCitiesByState(String stateCode) async {
+    try {
+      var url = Uri.parse(
+          '${legalNoticebaseUrl}Shared/GetCitiesByState?state=${Uri.encodeComponent(stateCode)}');
+      final response = await _client.get(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": _vistaarApiKey,
+        },
+      ).timeout(_timeLimit);
+
+      if (response.statusCode == 200) {
+        var responseBody = json.decode(response.body);
+        if ((responseBody['status'] == true ||
+                responseBody['success'] == true) &&
+            responseBody['data'] != null) {
+          return (responseBody['data'] as List)
+              .map((e) => CityItem.fromJson(e))
+              .toList();
+        }
+      }
+    } catch (e) {
+      print("getCitiesByState error: $e");
+    }
+    return [];
+  }
+
+  Future<List<PinCodeItem>> getPinCodesByCity(String cityCode) async {
+    try {
+      var url = Uri.parse(
+          '${legalNoticebaseUrl}Shared/GetPinCodesByCity?city=${Uri.encodeComponent(cityCode)}');
+      final response = await _client.get(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": _vistaarApiKey,
+        },
+      ).timeout(_timeLimit);
+
+      if (response.statusCode == 200) {
+        var responseBody = json.decode(response.body);
+        if ((responseBody['status'] == true ||
+                responseBody['success'] == true) &&
+            responseBody['data'] != null) {
+          return (responseBody['data'] as List)
+              .map((e) => PinCodeItem.fromJson(e))
+              .toList();
+        }
+      }
+    } catch (e) {
+      print("getPinCodesByCity error: $e");
+    }
+    return [];
   }
 }

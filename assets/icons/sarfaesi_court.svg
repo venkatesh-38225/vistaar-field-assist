@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <defs>
+    <linearGradient id="courtGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <linearGradient id="roofGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#1D4ED8"/>
+    </linearGradient>
+    <linearGradient id="pillarGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#60A5FA"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="folderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10B981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+  </defs>
+  <!-- Background glow circle -->
+  <circle cx="40" cy="40" r="34" fill="#EFF6FF"/>
+  <!-- Pediment / Triangular Roof -->
+  <path d="M14 28 L40 13 L66 28 Z" fill="url(#roofGrad)" stroke="#1D4ED8" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- Architrave / Entablature below triangle -->
+  <rect x="12" y="27" width="56" height="5" rx="1.5" fill="#1E40AF"/>
+  <!-- 4 Pillars -->
+  <rect x="18" y="32" width="6" height="23" rx="1" fill="url(#pillarGrad)"/>
+  <rect x="30" y="32" width="6" height="23" rx="1" fill="url(#pillarGrad)"/>
+  <rect x="44" y="32" width="6" height="23" rx="1" fill="url(#pillarGrad)"/>
+  <rect x="56" y="32" width="6" height="23" rx="1" fill="url(#pillarGrad)"/>
+  <!-- Pillar Caps & Bases -->
+  <rect x="16" y="32" width="10" height="2" rx="0.5" fill="#1E40AF"/>
+  <rect x="28" y="32" width="10" height="2" rx="0.5" fill="#1E40AF"/>
+  <rect x="42" y="32" width="10" height="2" rx="0.5" fill="#1E40AF"/>
+  <rect x="54" y="32" width="10" height="2" rx="0.5" fill="#1E40AF"/>
+  <rect x="16" y="53" width="10" height="2" rx="0.5" fill="#1E40AF"/>
+  <rect x="28" y="53" width="10" height="2" rx="0.5" fill="#1E40AF"/>
+  <rect x="42" y="53" width="10" height="2" rx="0.5" fill="#1E40AF"/>
+  <rect x="54" y="53" width="10" height="2" rx="0.5" fill="#1E40AF"/>
+  <!-- Upper Step / Stylobate -->
+  <rect x="13" y="55" width="54" height="4" rx="1" fill="#1D4ED8"/>
+  <!-- Lower Steps -->
+  <rect x="10" y="59" width="60" height="5" rx="1.5" fill="#1E40AF"/>
+  <!-- Filing badge in bottom right corner -->
+  <circle cx="58" cy="56" r="11" fill="url(#folderGrad)" stroke="#FFF" stroke-width="2.5"/>
+  <path d="M54 53 L56 50 L62 50 L64 53 L64 61 L54 61 Z" fill="#FFF" opacity="0.95"/>
+  <path d="M57 56 L59 58 L62 55" fill="none" stroke="#059669" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

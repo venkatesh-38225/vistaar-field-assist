@@ -64,6 +64,7 @@ class _EditSarfaesiScreenState extends State<EditSarfaesiScreen> {
 
   // ── LAN Details (read-only, prefilled from API) ────────────────────────────
   String _lan = '';
+  String _category = '';
   String _customerName = '';
   String _propertyAddress = ''; // kept for update payload (joined)
   List<Map<String, dynamic>> _collaterals = []; // from getCollateralsByLan
@@ -229,6 +230,7 @@ class _EditSarfaesiScreenState extends State<EditSarfaesiScreen> {
         setState(() {
           // LAN details
           _lan = d.lan ?? '';
+          _category = d.category ?? '';
           _customerName = d.customerName ?? '';
           _propertyAddress = d.propertyAddress ?? '';
           _residentialAddress = d.residentialAddress ?? '';
@@ -502,6 +504,9 @@ class _EditSarfaesiScreenState extends State<EditSarfaesiScreen> {
       'isPossessionTaken': selectedPossessionStatus == 'Yes',
       'createdBy': widget.employeeId,
     };
+    if (_category.isNotEmpty) {
+      payload['category'] = _category;
+    }
 
     if (selectedPossessionStatus == 'No') {
       payload['nonPossessionReason'] = selectedNoPossessionReason;
@@ -1005,6 +1010,8 @@ class _EditSarfaesiScreenState extends State<EditSarfaesiScreen> {
               _buildDetailsCard([
                 _buildDetailRow('LAN', _lan),
                 _buildDetailRow('Customer Name', _customerName),
+                if (_category.isNotEmpty)
+                  _buildDetailRow('Category', _category),
                 _buildDetailRow(
                     'Customer Contact', _customerContact),
                 _buildDetailRow(

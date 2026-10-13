@@ -955,12 +955,14 @@ class _PhysicalFilingDetailsScreenState
                         fontWeight: FontWeight.w600,
                         color: const Color(0xFF102F54),
                       ),
-                      if (item.identificationNumber?.trim().isNotEmpty ==
-                          true) ...[
+                      if (item.identificationNumber != null &&
+                          item.identificationNumber!.trim().isNotEmpty &&
+                          item.identificationNumber!.trim().toLowerCase() !=
+                              'null') ...[
                         const SizedBox(height: 3),
                         CustomText(
                           text:
-                              'Doc / ID: ${item.identificationNumber!.trim()}',
+                              'Identification No: ${item.identificationNumber!.trim()}',
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
                           color: Colors.black54,

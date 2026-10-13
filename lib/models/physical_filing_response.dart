@@ -349,7 +349,10 @@ class PhysicalFilingChecklistItem {
       fieldReceived: json['fieldReceived'] as bool?,
       legalComments: json['legalComments']?.toString(),
       fieldComments: json['fieldComments']?.toString(),
-      identificationNumber: json['identificationNumber']?.toString(),
+      identificationNumber: (json['identificationNumber'] ??
+              json['identificationNo'] ??
+              json['identification_number'])
+          ?.toString(),
       hasDiscrepancy: json['hasDiscrepancy'] == true,
       isMandatory: json['isMandatory'] == true,
     );

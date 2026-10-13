@@ -16,6 +16,8 @@ import 'package:re_kyc_mobile_app/utils/global_snackbar.dart';
 
 import '../../widgets/AnimatedStepCircle.dart';
 import '../../widgets/customes_textformfield.dart';
+import '../../models/state_city_pincode_model.dart';
+import '../../widgets/searchable_autocomplete_field.dart';
 
 class AddAppraiser extends StatefulWidget {
   const AddAppraiser(
@@ -97,11 +99,126 @@ class _AddAppraiserState extends State<AddAppraiser> {
     'Individual',
   ];
 
+  List<StateItem> _stateList = [];
+  List<CityItem> _cityList = [];
+  List<PinCodeItem> _pinCodeList = [];
+  StateItem? _selectedState;
+  CityItem? _selectedCity;
+  PinCodeItem? _selectedPinCode;
+  bool _isLoadingStates = false;
+  bool _isLoadingCities = false;
+  bool _isLoadingPinCodes = false;
+
+  Future<void> _fetchStates() async {
+    setState(() => _isLoadingStates = true);
+    final states = await ApiClient().getStateList();
+    if (mounted) {
+      setState(() {
+        _stateList = states;
+        _isLoadingStates = false;
+      });
+      _matchPrefilledState();
+    }
+  }
+
+  void _matchPrefilledState() {
+    if (stateController.text.trim().isEmpty) return;
+    try {
+      final matched = _stateList.firstWhere(
+        (s) =>
+            s.cpProvinceName.trim().toLowerCase() ==
+            stateController.text.trim().toLowerCase(),
+      );
+      _selectedState = matched;
+      final existingCity = cityController.text.trim();
+      _fetchCities(matched.cpProvince, prefillCity: existingCity);
+    } catch (_) {}
+  }
+
+  void _onStateSelected(StateItem state) {
+    setState(() {
+      _selectedState = state;
+      stateController.text = state.cpProvinceName;
+      _selectedCity = null;
+      cityController.clear();
+      _cityList = [];
+      _selectedPinCode = null;
+      pinCodeController.clear();
+      _pinCodeList = [];
+    });
+    _fetchCities(state.cpProvince);
+  }
+
+  Future<void> _fetchCities(String stateCode, {String? prefillCity}) async {
+    setState(() => _isLoadingCities = true);
+    final cities = await ApiClient().getCitiesByState(stateCode);
+    if (mounted) {
+      setState(() {
+        _cityList = cities;
+        _isLoadingCities = false;
+      });
+      if (prefillCity != null && prefillCity.isNotEmpty) {
+        _matchPrefilledCity(prefillCity);
+      }
+    }
+  }
+
+  void _matchPrefilledCity(String cityNameToMatch) {
+    try {
+      final matched = _cityList.firstWhere(
+        (c) =>
+            c.pcCityName.trim().toLowerCase() ==
+            cityNameToMatch.trim().toLowerCase(),
+      );
+      _selectedCity = matched;
+      final existingPin = pinCodeController.text.trim();
+      _fetchPinCodes(matched.pcCity, prefillPin: existingPin);
+    } catch (_) {}
+  }
+
+  void _onCitySelected(CityItem city) {
+    setState(() {
+      _selectedCity = city;
+      cityController.text = city.pcCityName;
+      _selectedPinCode = null;
+      pinCodeController.clear();
+      _pinCodeList = [];
+    });
+    _fetchPinCodes(city.pcCity);
+  }
+
+  Future<void> _fetchPinCodes(String cityCode, {String? prefillPin}) async {
+    setState(() => _isLoadingPinCodes = true);
+    final pinCodes = await ApiClient().getPinCodesByCity(cityCode);
+    if (mounted) {
+      setState(() {
+        _pinCodeList = pinCodes;
+        _isLoadingPinCodes = false;
+      });
+      if (prefillPin != null && prefillPin.isNotEmpty) {
+        try {
+          final matched = pinCodes.firstWhere(
+            (p) => p.pincode.trim() == prefillPin.trim(),
+          );
+          _selectedPinCode = matched;
+          pinCodeController.text = matched.pincode;
+        } catch (_) {}
+      }
+    }
+  }
+
+  void _onPinCodeSelected(PinCodeItem pin) {
+    setState(() {
+      _selectedPinCode = pin;
+      pinCodeController.text = pin.pincode;
+    });
+  }
 
   @override
   void initState() {
     super.initState();
     _applyBasicPrefillIfAny();
+    _fetchStates();
 
     individualAddressController.addListener(() {
       if (isSameIndividualAddress) {
@@ -1260,45 +1377,58 @@ class _AddAppraiserState extends State<AddAppraiser> {
                   }
                 },
               ),
-              BuildTextField(
-                hint: 'Pin code',
-                label: 'Pin code',
-                icon: Icons.map_sharp,
-                inputType: TextInputType.number,
-                isMultiline: false,
-                maxLength: 6,
-                counterText: "",
-                controller: pinCodeController,
-                onSaved: (String? value) {
-                  setState(() {
-                    pinCodeController.text = value!;
-                  });
-                },
+              SearchableAutocompleteField<StateItem>(
+                label: 'State',
+                hint: 'Select State',
+                icon: Icons.pin_drop,
+                controller: stateController,
+                items: _stateList,
+                isLoading: _isLoadingStates,
+                itemLabel: (item) => item.cpProvinceName,
+                onSelected: _onStateSelected,
                 validator: (value) {
-                  if (value!.isEmpty) {
+                  if (value == null || value.isEmpty) {
                     return 'Required';
-                  } else {
-                    return null;
                   }
+                  return null;
                 },
               ),
-              BuildTextField(
-                hint: 'State',
-                label: 'State',
-                icon: Icons.pin_drop,
-                isMultiline: false,
-                controller: stateController,
-                onSaved: (String? value) {
-                  setState(() {
-                    stateController.text = value!;
-                  });
-                },
+              SearchableAutocompleteField<CityItem>(
+                label: 'City',
+                hint: 'Select City',
+                icon: Icons.add_business,
+                controller: cityController,
+                items: _cityList,
+                isEnabled:
+                    _selectedState != null || stateController.text.isNotEmpty,
+                isLoading: _isLoadingCities,
+                disabledMessage: 'Please select State first',
+                itemLabel: (item) => item.pcCityName,
+                onSelected: _onCitySelected,
                 validator: (value) {
-                  if (value!.isEmpty) {
+                  if (value == null || value.isEmpty) {
                     return 'Required';
-                  } else {
-                    return null;
                   }
+                  return null;
+                },
+              ),
+              SearchableAutocompleteField<PinCodeItem>(
+                label: 'Pin code',
+                hint: 'Select Pin code',
+                icon: Icons.map_sharp,
+                controller: pinCodeController,
+                items: _pinCodeList,
+                isEnabled:
+                    _selectedCity != null || cityController.text.isNotEmpty,
+                isLoading: _isLoadingPinCodes,
+                disabledMessage: 'Please select City first',
+                itemLabel: (item) => item.pincode,
+                onSelected: _onPinCodeSelected,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Required';
+                  }
+                  return null;
                 },
               ),
               BuildTextField(
@@ -1310,25 +1440,6 @@ class _AddAppraiserState extends State<AddAppraiser> {
                 onSaved: (String? value) {
                   setState(() {
                     districtController.text = value!;
-                  });
-                },
-                validator: (value) {
-                  if (value!.isEmpty) {
-                    return 'Required';
-                  } else {
-                    return null;
-                  }
-                },
-              ),
-              BuildTextField(
-                hint: 'City',
-                label: 'City',
-                icon: Icons.add_business,
-                isMultiline: false,
-                controller: cityController,
-                onSaved: (String? value) {
-                  setState(() {
-                    cityController.text = value!;
                   });
                 },
                 validator: (value) {

@@ -77,7 +77,8 @@ class _SarfaesiScreenState extends State<SarfaesiScreen> with RouteAware {
       filteredRecords = billingRecords.where((record) {
         final query = searchController.text.toLowerCase();
         return record.lan.toLowerCase().contains(query) ||
-            record.customerName.toLowerCase().contains(query);
+            record.customerName.toLowerCase().contains(query) ||
+            (record.category?.toLowerCase().contains(query) ?? false);
       }).toList();
     });
   }
@@ -410,6 +411,14 @@ class _SarfaesiScreenState extends State<SarfaesiScreen> with RouteAware {
                     'Mobile',
                     record.mobile != null ? record.mobile : '-',
                   ),
+                  if ((record.category ?? '').isNotEmpty) ...[
+                    const SizedBox(height: 5),
+                    _buildInfoRow(
+                      Icons.category_outlined,
+                      'Category',
+                      record.category!,
+                    ),
+                  ],
                   const SizedBox(height: 5),
                   _buildInfoRow(
                     Icons.post_add_sharp,

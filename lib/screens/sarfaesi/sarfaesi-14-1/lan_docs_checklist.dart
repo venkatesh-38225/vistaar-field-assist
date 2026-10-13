@@ -631,16 +631,35 @@ class _LanDocsChecklistScreenState extends State<LanDocsChecklistScreen> {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: CustomText(
-                      text: item.documentName,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF102F54),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CustomText(
+                          text: item.documentName,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF102F54),
+                        ),
+                        if (item.identificationNumber != null &&
+                            item.identificationNumber!.trim().isNotEmpty &&
+                            item.identificationNumber!.trim().toLowerCase() !=
+                                'null') ...[
+                          const SizedBox(height: 3),
+                          CustomText(
+                            text:
+                                'Identification No: ${item.identificationNumber!.trim()}',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black54,
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   if (isMismatch)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.orange.shade50,
                         borderRadius: BorderRadius.circular(999),
@@ -669,7 +688,8 @@ class _LanDocsChecklistScreenState extends State<LanDocsChecklistScreen> {
               ),
               const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
                   color: legalColor.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),

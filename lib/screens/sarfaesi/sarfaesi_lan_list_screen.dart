@@ -23,8 +23,13 @@ class SarfaesiLanListScreen extends StatefulWidget {
 class _SarfaesiLanItem {
   final String lan;
   final String custName;
+  final String category;
 
-  _SarfaesiLanItem({required this.lan, required this.custName});
+  _SarfaesiLanItem({
+    required this.lan,
+    required this.custName,
+    this.category = '',
+  });
 }
 
 class _SarfaesiLanListScreenState extends State<SarfaesiLanListScreen> {
@@ -56,7 +61,8 @@ class _SarfaesiLanListScreenState extends State<SarfaesiLanListScreen> {
       } else {
         filteredLanItems = lanItems.where((item) {
           return item.lan.toLowerCase().contains(query) ||
-              item.custName.toLowerCase().contains(query);
+              item.custName.toLowerCase().contains(query) ||
+              item.category.toLowerCase().contains(query);
         }).toList();
       }
     });
@@ -78,7 +84,8 @@ class _SarfaesiLanListScreenState extends State<SarfaesiLanListScreen> {
         final items = data
             .map((map) => _SarfaesiLanItem(
                   lan: map['lan'] ?? '',
-                  custName: map['customerName'] ?? '',
+                  custName: map['customerName'] ?? map['custName'] ?? '',
+                  category: map['category'] ?? '',
                 ))
             .where((item) => item.lan.isNotEmpty)
             .toList();
@@ -135,7 +142,7 @@ class _SarfaesiLanListScreenState extends State<SarfaesiLanListScreen> {
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: Colors.white,
-                    hintText: 'Search LAN or Customer Name...',
+                    hintText: 'Search LAN, Customer, or Category...',
                     hintStyle:
                         const TextStyle(color: Colors.grey, fontSize: 14),
                     prefixIcon: const Icon(Icons.search, color: Colors.grey),
@@ -205,6 +212,7 @@ class _SarfaesiLanListScreenState extends State<SarfaesiLanListScreen> {
                 employeeId: widget.employeeId,
                 branchCode: widget.branchCode,
                 initialLan: item.lan,
+                initialCategory: item.category,
               ));
           if (result == true) {
             Get.back(result: true);
@@ -253,6 +261,27 @@ class _SarfaesiLanListScreenState extends State<SarfaesiLanListScreen> {
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                               color: Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (item.category.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.category_outlined,
+                            size: 16,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: CustomText(
+                              text: 'Category: ${item.category}',
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black54,
                             ),
                           ),
                         ],

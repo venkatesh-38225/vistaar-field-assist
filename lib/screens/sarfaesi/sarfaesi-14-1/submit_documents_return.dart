@@ -355,10 +355,9 @@ class _SubmitDocumentsReturnScreenState
               controller: _dispatchDateController,
               readOnly: true,
               onTap: _pickDispatchDate,
-              validator: (value) =>
-                  value == null || value.trim().isEmpty
-                      ? 'Please select dispatch date'
-                      : null,
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Please select dispatch date'
+                  : null,
               decoration: _inputDecoration(
                 hint: 'Select dispatch date',
                 suffixIcon: Icons.calendar_today_outlined,
@@ -386,10 +385,9 @@ class _SubmitDocumentsReturnScreenState
                   )
                   .toList(),
               onChanged: (value) => setState(() => _courierApiValue = value),
-              validator: (value) =>
-                  value == null || value.trim().isEmpty
-                      ? 'Please select courier name'
-                      : null,
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Please select courier name'
+                  : null,
             ),
             const SizedBox(height: 16),
             const CustomText(
@@ -402,10 +400,9 @@ class _SubmitDocumentsReturnScreenState
             TextFormField(
               controller: _podNumberController,
               textCapitalization: TextCapitalization.characters,
-              validator: (value) =>
-                  value == null || value.trim().isEmpty
-                      ? 'Please enter POD number'
-                      : null,
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Please enter POD number'
+                  : null,
               decoration: _inputDecoration(hint: 'Enter POD number'),
             ),
             const SizedBox(height: 16),
@@ -421,10 +418,9 @@ class _SubmitDocumentsReturnScreenState
               minLines: 4,
               maxLines: 6,
               textCapitalization: TextCapitalization.sentences,
-              validator: (value) =>
-                  value == null || value.trim().isEmpty
-                      ? 'Please enter remarks'
-                      : null,
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Please enter remarks'
+                  : null,
               decoration: _inputDecoration(hint: 'Enter remarks'),
             ),
           ],
@@ -582,7 +578,7 @@ class _SubmitDocumentsReturnScreenState
     );
   }
 
-    Widget _buildCaseStatus(String? status) {
+  Widget _buildCaseStatus(String? status) {
     final value = status?.trim() ?? '';
     if (value.isEmpty) {
       return const CustomText(
@@ -711,11 +707,29 @@ class _SubmitDocumentsReturnScreenState
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: CustomText(
-                    text: item.documentName,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF102F54),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CustomText(
+                        text: item.documentName,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF102F54),
+                      ),
+                      if (item.identificationNumber != null &&
+                          item.identificationNumber!.trim().isNotEmpty &&
+                          item.identificationNumber!.trim().toLowerCase() !=
+                              'null') ...[
+                        const SizedBox(height: 3),
+                        CustomText(
+                          text:
+                              'Identification No: ${item.identificationNumber!.trim()}',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black54,
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 if (item.hasDiscrepancy)

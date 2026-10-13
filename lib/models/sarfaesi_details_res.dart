@@ -52,6 +52,7 @@ class SarfaesiDetailsData {
   final DateTime? createdDt;
   final String? updatedBy;
   final DateTime? updatedDt;
+  final String? category;
 
   final List<SarfaesiFile> files;
 
@@ -82,6 +83,7 @@ class SarfaesiDetailsData {
     required this.customerIntentCapability,
     required this.nonPossessionReason,
     required this.responseStatus,
+    this.category,
     this.createdBy,
     this.createdDt,
     this.updatedBy,
@@ -96,6 +98,7 @@ class SarfaesiDetailsData {
         id: json["id"] ?? 0,
         lan: json["lan"] ?? "",
         customerName: json["customerName"] ?? "",
+        category: json["category"]?.toString() ?? json["Category"]?.toString(),
         propertyAddress: json["propertyAddress"] ?? "",
         residentialAddress: json["residentialAddress"] ?? "",
         mobile: json["mobile"] ?? "",
