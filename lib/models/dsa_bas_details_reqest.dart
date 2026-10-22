@@ -67,6 +67,9 @@ class BasicDetails {
    String? remarks;
    String? pan;
    DateTime? dobAsperPan;
+   String? stateCode;
+   String? cityCode;
+   dynamic pinCodeId;
 
   BasicDetails({
     this.name,
@@ -87,6 +90,9 @@ class BasicDetails {
     this.remarks,
     this.pan,
     this.dobAsperPan,
+    this.stateCode,
+    this.cityCode,
+    this.pinCodeId,
   });
 
   factory BasicDetails.fromMap(Map<String, dynamic> json) => BasicDetails(
@@ -108,6 +114,9 @@ class BasicDetails {
     remarks: json["remarks"],
     pan: json["pan"],
     dobAsperPan: json["dobAsperPAN"] == null ? null : DateTime.parse(json["dobAsperPAN"]),
+    stateCode: json["stateCode"]?.toString(),
+    cityCode: json["cityCode"]?.toString(),
+    pinCodeId: json["pinCodeId"],
   );
 
   Map<String, dynamic> toMap() => {
@@ -129,5 +138,8 @@ class BasicDetails {
     "remarks": remarks,
     "pan": pan,
     "dobAsperPAN": dobAsperPan?.toIso8601String(),
+    "stateCode": stateCode,
+    "cityCode": cityCode,
+    "pinCodeId": pinCodeId,
   };
 }

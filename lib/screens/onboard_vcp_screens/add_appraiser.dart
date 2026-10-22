@@ -84,13 +84,13 @@ class _AddAppraiserState extends State<AddAppraiser> {
   final _basicDetailsFormKey = GlobalKey<FormState>();
   BasicDetails? basicDetails;
   DsaBasicDetailsRequest? bsaBasicDetailsRequest;
-  bool isSentBackValue = false ;
+  bool isSentBackValue = false;
   String? submittedId;
   Map<String, dynamic>? businessDetails;
   Map<String, dynamic>? documentDetails;
   Map<String, dynamic>? bankDetails;
   bool isSameIndividualAddress = false;
-
+  bool _isSaving = false;
 
   final List<String> companyTypeList = [
     'Proprietorship',
@@ -105,6 +105,9 @@ class _AddAppraiserState extends State<AddAppraiser> {
   StateItem? _selectedState;
   CityItem? _selectedCity;
   PinCodeItem? _selectedPinCode;
+  String? _stateCode;
+  String? _cityCode;
+  dynamic _pinCodeId;
   bool _isLoadingStates = false;
   bool _isLoadingCities = false;
   bool _isLoadingPinCodes = false;
@@ -122,27 +125,38 @@ class _AddAppraiserState extends State<AddAppraiser> {
   }
 
   void _matchPrefilledState() {
-    if (stateController.text.trim().isEmpty) return;
+    if (stateController.text.trim().isEmpty &&
+        (_stateCode == null || _stateCode!.isEmpty)) {
+      return;
+    }
     try {
       final matched = _stateList.firstWhere(
         (s) =>
+            (_stateCode != null &&
+                _stateCode!.isNotEmpty &&
+                s.cpProvince == _stateCode) ||
             s.cpProvinceName.trim().toLowerCase() ==
-            stateController.text.trim().toLowerCase(),
+                stateController.text.trim().toLowerCase(),
       );
       _selectedState = matched;
+      _stateCode = matched.cpProvince;
       final existingCity = cityController.text.trim();
-      _fetchCities(matched.cpProvince, prefillCity: existingCity);
+      _fetchCities(matched.cpProvince,
+          prefillCity: existingCity.isNotEmpty ? existingCity : null);
     } catch (_) {}
   }
 
   void _onStateSelected(StateItem state) {
     setState(() {
       _selectedState = state;
+      _stateCode = state.cpProvince;
       stateController.text = state.cpProvinceName;
       _selectedCity = null;
+      _cityCode = null;
       cityController.clear();
       _cityList = [];
       _selectedPinCode = null;
+      _pinCodeId = null;
       pinCodeController.clear();
       _pinCodeList = [];
     });
@@ -157,8 +171,9 @@ class _AddAppraiserState extends State<AddAppraiser> {
         _cityList = cities;
         _isLoadingCities = false;
       });
-      if (prefillCity != null && prefillCity.isNotEmpty) {
-        _matchPrefilledCity(prefillCity);
+      if ((prefillCity != null && prefillCity.isNotEmpty) ||
+          (_cityCode != null && _cityCode!.isNotEmpty)) {
+        _matchPrefilledCity(prefillCity ?? "");
       }
     }
   }
@@ -167,20 +182,27 @@ class _AddAppraiserState extends State<AddAppraiser> {
     try {
       final matched = _cityList.firstWhere(
         (c) =>
+            (_cityCode != null &&
+                _cityCode!.isNotEmpty &&
+                c.pcCity == _cityCode) ||
             c.pcCityName.trim().toLowerCase() ==
-            cityNameToMatch.trim().toLowerCase(),
+                cityNameToMatch.trim().toLowerCase(),
       );
       _selectedCity = matched;
+      _cityCode = matched.pcCity;
       final existingPin = pinCodeController.text.trim();
-      _fetchPinCodes(matched.pcCity, prefillPin: existingPin);
+      _fetchPinCodes(matched.pcCity,
+          prefillPin: existingPin.isNotEmpty ? existingPin : null);
     } catch (_) {}
   }
 
   void _onCitySelected(CityItem city) {
     setState(() {
       _selectedCity = city;
+      _cityCode = city.pcCity;
       cityController.text = city.pcCityName;
       _selectedPinCode = null;
+      _pinCodeId = null;
       pinCodeController.clear();
       _pinCodeList = [];
     });
@@ -195,12 +217,16 @@ class _AddAppraiserState extends State<AddAppraiser> {
         _pinCodeList = pinCodes;
         _isLoadingPinCodes = false;
       });
-      if (prefillPin != null && prefillPin.isNotEmpty) {
+      if ((prefillPin != null && prefillPin.isNotEmpty) || _pinCodeId != null) {
         try {
           final matched = pinCodes.firstWhere(
-            (p) => p.pincode.trim() == prefillPin.trim(),
+            (p) =>
+                (_pinCodeId != null &&
+                    p.pincodeId?.toString() == _pinCodeId?.toString()) ||
+                p.pincode.trim() == (prefillPin ?? "").trim(),
           );
           _selectedPinCode = matched;
+          _pinCodeId = matched.pincodeId;
           pinCodeController.text = matched.pincode;
         } catch (_) {}
       }
@@ -210,6 +236,7 @@ class _AddAppraiserState extends State<AddAppraiser> {
   void _onPinCodeSelected(PinCodeItem pin) {
     setState(() {
       _selectedPinCode = pin;
+      _pinCodeId = pin.pincodeId;
       pinCodeController.text = pin.pincode;
     });
   }
@@ -229,7 +256,6 @@ class _AddAppraiserState extends State<AddAppraiser> {
     });
   }
 
-
   void _parseAndSetDOB(String? dobString) {
     if (dobString != null && dobString.isNotEmpty) {
       try {
@@ -246,7 +272,6 @@ class _AddAppraiserState extends State<AddAppraiser> {
   }
 
   String? _mapCompanyType(String? apiValue) {
-
     if (apiValue == null || apiValue == "") return null;
     switch (apiValue.toLowerCase()) {
       case 'partnership':
@@ -265,28 +290,30 @@ class _AddAppraiserState extends State<AddAppraiser> {
   void _applyBasicPrefillIfAny() {
     final args = Get.arguments;
 
-
     if (args is Map && args["basicDetails"] is Map) {
       submittedId = args["id"];
       final isSentBack = args["isSentBack"];
-
 
       isSentBackValue = isSentBack ? true : false;
       final businessInfo = args["businessDetails"];
       businessDetails = businessInfo;
       documentDetails = args["documents"];
       isSameIndividualAddress = args["isSameIndividualAddress"] ?? false;
-      bankDetails =args["bankDetails"];
+      bankDetails = args["bankDetails"];
       final m = Map<String, dynamic>.from(args["basicDetails"]);
       nameController.text = (m["name"] ?? "").toString();
       mobileNoController.text = (m["mobile"] ?? "").toString();
       emailController.text = (m["email"] ?? "").toString();
-      companyRegNoController.text = (m["companyRegistrationNo"] ?? "").toString();
+      companyRegNoController.text =
+          (m["companyRegistrationNo"] ?? "").toString();
       designationController.text = (m["designation"] ?? "").toString();
       pinCodeController.text = (m["pincode"] ?? "").toString();
       cityController.text = (m["city"] ?? "").toString();
       districtController.text = (m["district"] ?? "").toString();
       stateController.text = (m["stateName"] ?? "").toString();
+      _stateCode = m["stateCode"]?.toString();
+      _cityCode = m["cityCode"]?.toString();
+      _pinCodeId = m["pinCodeId"];
       individualAddressController.text = (m["address"] ?? "").toString();
       officeAddressController.text = (m["officeAddress"] ?? "").toString();
       telephoneController.text = (m["telephoneNumber"] ?? "").toString();
@@ -295,7 +322,8 @@ class _AddAppraiserState extends State<AddAppraiser> {
       companyType = m["companyType"]?.toString();
       selectedGender = m["gender"]?.toString();
       fathersNameController.text = (m["fatherName"] ?? "").toString();
-      educationQualificationController.text = (m["eduQualification"] ?? "").toString();
+      educationQualificationController.text =
+          (m["eduQualification"] ?? "").toString();
       agencyNameController.text = (m["agencyName"] ?? "").toString();
       businessNameController.text = (m["businessName"] ?? "").toString();
       // Map API company type to dropdown display value
@@ -303,16 +331,21 @@ class _AddAppraiserState extends State<AddAppraiser> {
 
       selectedGender = m["gender"]?.toString();
       fathersNameController.text = (m["fatherName"] ?? "").toString();
-      educationQualificationController.text = (m["eduQualification"] ?? "").toString();
+      educationQualificationController.text =
+          (m["eduQualification"] ?? "").toString();
       agencyNameController.text = (m["agencyName"] ?? "").toString();
       businessNameController.text = (m["businessName"] ?? "").toString();
 
-      if (m["mobileStatus"] == "Validated" || m["mobileStatus"] == "Y" || isSentBackValue) {
+      if (m["mobileStatus"] == "Validated" ||
+          m["mobileStatus"] == "Y" ||
+          isSentBackValue) {
         mobileValidation = "Validated";
       }
 
       // Check email status
-      if (m["emailStatus"] == "Validated" || m["emailStatus"] == "Y" || isSentBackValue) {
+      if (m["emailStatus"] == "Validated" ||
+          m["emailStatus"] == "Y" ||
+          isSentBackValue) {
         emailValidation = "Validated";
       }
 
@@ -322,10 +355,9 @@ class _AddAppraiserState extends State<AddAppraiser> {
       setState(() {
         canShowIndividualBasicDetails = companyType == "Individual";
       });
-
-
     }
   }
+
   // Function to show date picker
   Future<void> _selectDate(BuildContext context, bool isAadhaar) async {
     DateTime? pickedDate = await showDatePicker(
@@ -510,18 +542,15 @@ class _AddAppraiserState extends State<AddAppraiser> {
                         children: [
                           Expanded(
                             child: TextFormField(
-
                               enabled: isSentBackValue ? false : true,
                               controller: mobileNoController,
                               keyboardType: TextInputType.number,
                               maxLines: 1,
                               maxLength: 10,
-
                               decoration: InputDecoration(
                                 hintText: 'Mobile Number',
                                 hintStyle: TextStyle(color: Colors.grey[700]),
                                 filled: true,
-
                                 label: Text(
                                   'Mobile Number',
                                   style: TextStyle(color: Colors.grey[700]),
@@ -574,7 +603,8 @@ class _AddAppraiserState extends State<AddAppraiser> {
                                           "Please enter your valid mobile no",
                                           backgroundColor: Colors.redAccent,
                                           colorText: Colors.white);*/
-                                      GlobalSnackbar.showError("Please enter your valid mobile no");
+                                      GlobalSnackbar.showError(
+                                          "Please enter your valid mobile no");
                                     }
                                   },
                                   child: SizedBox(
@@ -661,7 +691,8 @@ class _AddAppraiserState extends State<AddAppraiser> {
                                           "Please enter your valid mobile no",
                                           backgroundColor: Colors.redAccent,
                                           colorText: Colors.white);*/
-                                      GlobalSnackbar.showError("Please enter your valid mobile no");
+                                      GlobalSnackbar.showError(
+                                          "Please enter your valid mobile no");
                                     }
                                   },
                                   child: SizedBox(
@@ -757,7 +788,8 @@ class _AddAppraiserState extends State<AddAppraiser> {
                             "Success", "Mobile no is validated successfully",
                             backgroundColor: Colors.green,
                             colorText: Colors.white);*/
-                        GlobalSnackbar.showSuccess("Mobile no is validated successfully");
+                        GlobalSnackbar.showSuccess(
+                            "Mobile no is validated successfully");
                       } else {
                         /*Get.snackbar("Failed", "OTP is not matching",
                             backgroundColor: Colors.redAccent,
@@ -850,7 +882,8 @@ class _AddAppraiserState extends State<AddAppraiser> {
                                               "Email verification is not allowed for @vistaarfinance.com",
                                               backgroundColor: Colors.redAccent,
                                               colorText: Colors.white);*/
-                                          GlobalSnackbar.showError("Email verification is not allowed for @vistaarfinance.com");
+                                          GlobalSnackbar.showError(
+                                              "Email verification is not allowed for @vistaarfinance.com");
                                         } else {
                                           emailOtpApi(
                                               email: emailController.text);
@@ -860,14 +893,16 @@ class _AddAppraiserState extends State<AddAppraiser> {
                                             "Please Provide a valid email Id",
                                             backgroundColor: Colors.redAccent,
                                             colorText: Colors.white);*/
-                                        GlobalSnackbar.showError("Please Provide a valid email Id");
+                                        GlobalSnackbar.showError(
+                                            "Please Provide a valid email Id");
                                       }
                                     } else {
                                       /*Get.snackbar("Failed",
                                           "Please enter your email Id",
                                           backgroundColor: Colors.redAccent,
                                           colorText: Colors.white);*/
-                                      GlobalSnackbar.showError("Please enter your email Id");
+                                      GlobalSnackbar.showError(
+                                          "Please enter your email Id");
                                     }
                                   },
                                   child: SizedBox(
@@ -955,7 +990,8 @@ class _AddAppraiserState extends State<AddAppraiser> {
                                               "Email verification is not allowed for @vistaarfinance.com",
                                               backgroundColor: Colors.redAccent,
                                               colorText: Colors.white);*/
-                                          GlobalSnackbar.showError("Email verification is not allowed for @vistaarfinance.com");
+                                          GlobalSnackbar.showError(
+                                              "Email verification is not allowed for @vistaarfinance.com");
                                         } else {
                                           emailOtpApi(email: widget.email!);
                                         }
@@ -964,14 +1000,16 @@ class _AddAppraiserState extends State<AddAppraiser> {
                                             "Please Provide a valid email Id",
                                             backgroundColor: Colors.redAccent,
                                             colorText: Colors.white);*/
-                                        GlobalSnackbar.showError("Please Provide a valid email Id");
+                                        GlobalSnackbar.showError(
+                                            "Please Provide a valid email Id");
                                       }
                                     } else {
                                       /*Get.snackbar("Failed",
                                           "Please enter your email Id",
                                           backgroundColor: Colors.redAccent,
                                           colorText: Colors.white);*/
-                                      GlobalSnackbar.showError("Please enter your email Id");
+                                      GlobalSnackbar.showError(
+                                          "Please enter your email Id");
                                     }
                                   },
                                   child: SizedBox(
@@ -1069,7 +1107,8 @@ class _AddAppraiserState extends State<AddAppraiser> {
                             "Success", "Email is validated successfully",
                             backgroundColor: Colors.green,
                             colorText: Colors.white);*/
-                        GlobalSnackbar.showSuccess("OTP is validated successfully");
+                        GlobalSnackbar.showSuccess(
+                            "OTP is validated successfully");
                       } else {
                         /*Get.snackbar("Failed", "OTP is not matching",
                             backgroundColor: Colors.redAccent,
@@ -1174,7 +1213,8 @@ class _AddAppraiserState extends State<AddAppraiser> {
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: DropdownButtonFormField<String>(
                     value: companyType,
-                    decoration: const InputDecoration(border: InputBorder.none, labelText: 'Company type'),
+                    decoration: const InputDecoration(
+                        border: InputBorder.none, labelText: 'Company type'),
                     hint: Row(
                       children: [
                         const Icon(
@@ -1221,7 +1261,9 @@ class _AddAppraiserState extends State<AddAppraiser> {
                             ),
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             child: DropdownButtonFormField<String>(
-                              value: genderList.contains(selectedGender) ? selectedGender : null,
+                              value: genderList.contains(selectedGender)
+                                  ? selectedGender
+                                  : null,
                               // Your selected gender variable
                               decoration: const InputDecoration(
                                 border: InputBorder.none,
@@ -1473,7 +1515,6 @@ class _AddAppraiserState extends State<AddAppraiser> {
                   }
                 },
               ),
-
               CheckboxListTile(
                 value: isSameIndividualAddress,
                 onChanged: (bool? value) {
@@ -1482,11 +1523,13 @@ class _AddAppraiserState extends State<AddAppraiser> {
 
                     // If checked, copy individual address to office address
                     if (isSameIndividualAddress) {
-                      officeAddressController.text = individualAddressController.text;
-                      isSameIndividualAddress=true;
+                      officeAddressController.text =
+                          individualAddressController.text;
+                      isSameIndividualAddress = true;
                     } else {
                       // If unchecked, clear office address
-                      officeAddressController.text = '';
+                      officeAddressController.text =
+                          individualAddressController.text ?? '';
                       isSameIndividualAddress = false;
                     }
                   });
@@ -1501,7 +1544,8 @@ class _AddAppraiserState extends State<AddAppraiser> {
                 controlAffinity: ListTileControlAffinity.leading,
                 contentPadding: EdgeInsets.zero,
                 dense: true,
-                activeColor: Constant.mediumBlueColor, // Use your app's primary color
+                activeColor:
+                    Constant.mediumBlueColor, // Use your app's primary color
               ),
               BuildTextField(
                 hint: 'Office Address',
@@ -1560,36 +1604,44 @@ class _AddAppraiserState extends State<AddAppraiser> {
               ),
               const SizedBox(height: 10),
               Center(
-                child: SizedBox(
-                  width: 200,
-                  child: CustomButton(
-                    text: 'Save & Next',
-                    onPressed: () {
-                      var form = _basicDetailsFormKey.currentState;
+                child: _isSaving
+                    ? const CircularProgressIndicator(
+                        color: Constant.mediumBlueColor,
+                      )
+                    : SizedBox(
+                        width: 200,
+                        child: CustomButton(
+                          text: 'Save & Next',
+                          onPressed: () {
+                            if (_isSaving) return;
+                            var form = _basicDetailsFormKey.currentState;
 
-                      if (form!.validate()) {
-                        if (emailValidation == 'Validated' &&
-                            mobileValidation == 'Validated') {
-                          saveBasicDetails();
-                        } else {
-                          /*Get.snackbar("Failed",
-                              'Please validate your email Id and mobile no',
-                              backgroundColor: Colors.redAccent,
-                              colorText: Colors.white);*/
-                          GlobalSnackbar.showError('Please validate your email Id and mobile no');
-                        }
-                      }
-
-                      /* Get.to(() => BusinessApplication(
-                          id: "36",
-                          employeeId: widget.employeeId,
-                          companyType: companyType,
-                          onboardType: widget.onboardType
-                      ));*/
-                    },
-                    backgroundColor: const Color(0xFFfaa61a),
-                  ),
-                ),
+                            if (form!.validate()) {
+                              if (dobAsPan == null) {
+                                GlobalSnackbar.showError(
+                                    'Please select DOB as per PAN');
+                                return;
+                              }
+                              if (companyType == null || companyType!.isEmpty) {
+                                GlobalSnackbar.showError(
+                                    'Please select company type');
+                                return;
+                              }
+                              if (emailValidation == 'Validated' &&
+                                  mobileValidation == 'Validated') {
+                                saveBasicDetails();
+                              } else {
+                                GlobalSnackbar.showError(
+                                    'Please validate your email Id and mobile no');
+                              }
+                            } else {
+                              GlobalSnackbar.showError(
+                                  'Please fill all required fields');
+                            }
+                          },
+                          backgroundColor: const Color(0xFFfaa61a),
+                        ),
+                      ),
               ),
             ],
           ),
@@ -1690,20 +1742,20 @@ class _AddAppraiserState extends State<AddAppraiser> {
   }
 
   void saveBasicDetails() async {
-    DateTime now = dobAsPan!.toUtc();
-    // log('dobAsPan - $dobAsPan');
-    // log('now - $now');
-    //
-    // String isoString = now.toIso8601String();
-    // log('isoString - ${dobAsPan?.toIso8601String()}');
+    if (dobAsPan == null) {
+      GlobalSnackbar.showError('Please select DOB as per PAN');
+      return;
+    }
 
+    setState(() {
+      _isSaving = true;
+    });
 
     // Keep local date without timezone shift
-    DateTime localDate = DateTime(dobAsPan!.year, dobAsPan!.month, dobAsPan!.day);
-    String isoString = localDate.toIso8601String(); // e.g., 2000-01-02T00:00:00.000
-
-    log('dobAsPan - $dobAsPan');
-    log('isoString - $isoString');
+    DateTime localDate =
+        DateTime(dobAsPan!.year, dobAsPan!.month, dobAsPan!.day);
+    String isoString =
+        localDate.toIso8601String(); // e.g., 2000-01-02T00:00:00.000
 
     Map<String, dynamic> body = {
       "queryType": isSentBackValue ? "update" : "add", // update for Edit
@@ -1723,6 +1775,11 @@ class _AddAppraiserState extends State<AddAppraiser> {
         "city": cityController.text,
         "district": districtController.text,
         "stateName": stateController.text,
+        "stateCode": _selectedState?.cpProvince ?? _stateCode ?? "",
+        "cityCode": _selectedCity?.pcCity ?? _cityCode ?? "",
+        "pinCodeId": _selectedPinCode?.pincodeId.toString() ??
+            _pinCodeId.toString() ??
+            "",
         "address": individualAddressController.text,
         "isSameIndividualAddress": isSameIndividualAddress,
         "officeAddress": officeAddressController.text,
@@ -1739,40 +1796,52 @@ class _AddAppraiserState extends State<AddAppraiser> {
       "updatedby": widget.employeeId,
     };
 
-    log('basic details : - ${json.encode(body)}');
+    print('basic details : - ${json.encode(body)}');
 
-    return;
-    Map<String, dynamic>? response =
-        await ApiClient().dsaBasicDetApi(json.encode(body));
+    try {
+      Map<String, dynamic>? response =
+          await ApiClient().dsaBasicDetApi(json.encode(body));
 
-    if (response != null) {
-      if (response["success"] == true) {
-        /*Get.snackbar("Success", "Basic details are saved successfully",
-            backgroundColor: Colors.green, colorText: Colors.white);*/
-        GlobalSnackbar.showSuccess("Basic details are saved successfully");
+      if (response != null) {
+        if (response["success"] == true) {
+          GlobalSnackbar.showSuccess(
+              response['message'] ?? "Basic details are saved successfully");
 
-        String safeCompanyType = companyType ?? "Proprietorship"; // Default value
-        String safeId = response["id"]?.toString() ?? ""; // Ensure id is not null
+          String safeCompanyType =
+              companyType ?? "Proprietorship"; // Default value
+          String safeId =
+              response["id"]?.toString() ?? ""; // Ensure id is not null
 
-        Get.to(() => BusinessApplication(
-            id: isSentBackValue ? submittedId.toString() : safeId,
-            employeeId: widget.employeeId,
-            companyType: safeCompanyType,
-            onboardType: widget.onboardType,
-        isSentBack: isSentBackValue),
-        arguments: {
-          "id": submittedId,
-          "isSentBack": isSentBackValue,
-          "businessDetails":businessDetails,
-          "documents": documentDetails,
-          "isSameIndividualAddress": isSameIndividualAddress,
-          "bankDetails": bankDetails
+          Get.to(
+              () => BusinessApplication(
+                  id: isSentBackValue ? submittedId.toString() : safeId,
+                  employeeId: widget.employeeId,
+                  companyType: safeCompanyType,
+                  onboardType: widget.onboardType,
+                  isSentBack: isSentBackValue),
+              arguments: {
+                "id": submittedId,
+                "isSentBack": isSentBackValue,
+                "businessDetails": businessDetails,
+                "documents": documentDetails,
+                "isSameIndividualAddress": isSameIndividualAddress,
+                "bankDetails": bankDetails
+              });
+        } else {
+          GlobalSnackbar.showError(
+              response["error"] ?? "Failed to save details");
         }
-        );
       } else {
-        /*Get.snackbar("Failed", response["error"],
-            backgroundColor: Colors.redAccent, colorText: Colors.white);*/
-        GlobalSnackbar.showError(response["error"] ?? "Failed to save details");
+        GlobalSnackbar.showError("Failed to save details. Please try again.");
+      }
+    } catch (e) {
+      log('Error saving basic details: $e');
+      GlobalSnackbar.showError("An error occurred while saving details");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
       }
     }
   }

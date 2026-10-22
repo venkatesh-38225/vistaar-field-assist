@@ -311,6 +311,9 @@ class _PendingAppraiserListState extends State<PendingAppraiserList> {
             "city": datum.basicDetails?.city,
             "district": datum.basicDetails?.district,
             "stateName": datum.basicDetails?.stateName,
+            "stateCode": datum.basicDetails?.stateCode,
+            "cityCode": datum.basicDetails?.cityCode,
+            "pinCodeId": datum.basicDetails?.pinCodeId,
             "address": datum.basicDetails?.address,
             "officeAddress": datum.basicDetails?.officeAddress,
             "telephoneNumber": datum.basicDetails?.telephoneNumber,
@@ -369,6 +372,7 @@ class _PendingAppraiserListState extends State<PendingAppraiserList> {
               "ifscCode": datum.bankDetails?.bankAcDetails?.ifscCode,
               "bankName": datum.bankDetails?.bankAcDetails?.bankName,
               "branchName": datum.bankDetails?.bankAcDetails?.branchName,
+              "bankBranchId": datum.bankDetails?.bankAcDetails?.bankBranchId,
             },
 
             // "fundAcValidationID": datum.bankDetails?.fundAcValidationID,
@@ -455,6 +459,7 @@ class _PendingAppraiserListState extends State<PendingAppraiserList> {
                 "ifscCode": datum.bankDetails?.bankAcDetails?.ifscCode,
                 "bankName": datum.bankDetails?.bankAcDetails?.bankName,
                 "branchName": datum.bankDetails?.bankAcDetails?.branchName,
+                "bankBranchId": datum.bankDetails?.bankAcDetails?.bankBranchId,
               },
 
               // "fundAcValidationID": datum.bankDetails?.fundAcValidationID,
@@ -479,6 +484,7 @@ class _PendingAppraiserListState extends State<PendingAppraiserList> {
                 "ifscCode": datum.bankDetails?.bankAcDetails?.ifscCode,
                 "bankName": datum.bankDetails?.bankAcDetails?.bankName,
                 "branchName": datum.bankDetails?.bankAcDetails?.branchName,
+                "bankBranchId": datum.bankDetails?.bankAcDetails?.bankBranchId,
               },
 
               // "fundAcValidationID": datum.bankDetails?.fundAcValidationID,

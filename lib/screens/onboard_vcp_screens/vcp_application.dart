@@ -100,6 +100,9 @@ class _VCPApplicationState extends State<VCPApplication> {
   StateItem? _selectedState;
   CityItem? _selectedCity;
   PinCodeItem? _selectedPinCode;
+  String? _stateCode;
+  String? _cityCode;
+  dynamic _pinCodeId;
   bool _isLoadingStates = false;
   bool _isLoadingCities = false;
   bool _isLoadingPinCodes = false;
@@ -117,27 +120,38 @@ class _VCPApplicationState extends State<VCPApplication> {
   }
 
   void _matchPrefilledState() {
-    if (stateController.text.trim().isEmpty) return;
+    if (stateController.text.trim().isEmpty &&
+        (_stateCode == null || _stateCode!.isEmpty)) {
+      return;
+    }
     try {
       final matched = _stateList.firstWhere(
         (s) =>
+            (_stateCode != null &&
+                _stateCode!.isNotEmpty &&
+                s.cpProvince == _stateCode) ||
             s.cpProvinceName.trim().toLowerCase() ==
-            stateController.text.trim().toLowerCase(),
+                stateController.text.trim().toLowerCase(),
       );
       _selectedState = matched;
+      _stateCode = matched.cpProvince;
       final existingCity = cityController.text.trim();
-      _fetchCities(matched.cpProvince, prefillCity: existingCity);
+      _fetchCities(matched.cpProvince,
+          prefillCity: existingCity.isNotEmpty ? existingCity : null);
     } catch (_) {}
   }
 
   void _onStateSelected(StateItem state) {
     setState(() {
       _selectedState = state;
+      _stateCode = state.cpProvince;
       stateController.text = state.cpProvinceName;
       _selectedCity = null;
+      _cityCode = null;
       cityController.clear();
       _cityList = [];
       _selectedPinCode = null;
+      _pinCodeId = null;
       pinCodeController.clear();
       _pinCodeList = [];
     });
@@ -152,8 +166,9 @@ class _VCPApplicationState extends State<VCPApplication> {
         _cityList = cities;
         _isLoadingCities = false;
       });
-      if (prefillCity != null && prefillCity.isNotEmpty) {
-        _matchPrefilledCity(prefillCity);
+      if ((prefillCity != null && prefillCity.isNotEmpty) ||
+          (_cityCode != null && _cityCode!.isNotEmpty)) {
+        _matchPrefilledCity(prefillCity ?? "");
       }
     }
   }
@@ -162,20 +177,27 @@ class _VCPApplicationState extends State<VCPApplication> {
     try {
       final matched = _cityList.firstWhere(
         (c) =>
+            (_cityCode != null &&
+                _cityCode!.isNotEmpty &&
+                c.pcCity == _cityCode) ||
             c.pcCityName.trim().toLowerCase() ==
-            cityNameToMatch.trim().toLowerCase(),
+                cityNameToMatch.trim().toLowerCase(),
       );
       _selectedCity = matched;
+      _cityCode = matched.pcCity;
       final existingPin = pinCodeController.text.trim();
-      _fetchPinCodes(matched.pcCity, prefillPin: existingPin);
+      _fetchPinCodes(matched.pcCity,
+          prefillPin: existingPin.isNotEmpty ? existingPin : null);
     } catch (_) {}
   }
 
   void _onCitySelected(CityItem city) {
     setState(() {
       _selectedCity = city;
+      _cityCode = city.pcCity;
       cityController.text = city.pcCityName;
       _selectedPinCode = null;
+      _pinCodeId = null;
       pinCodeController.clear();
       _pinCodeList = [];
     });
@@ -190,12 +212,16 @@ class _VCPApplicationState extends State<VCPApplication> {
         _pinCodeList = pinCodes;
         _isLoadingPinCodes = false;
       });
-      if (prefillPin != null && prefillPin.isNotEmpty) {
+      if ((prefillPin != null && prefillPin.isNotEmpty) || _pinCodeId != null) {
         try {
           final matched = pinCodes.firstWhere(
-            (p) => p.pincode.trim() == prefillPin.trim(),
+            (p) =>
+                (_pinCodeId != null &&
+                    p.pincodeId?.toString() == _pinCodeId?.toString()) ||
+                p.pincode.trim() == (prefillPin ?? "").trim(),
           );
           _selectedPinCode = matched;
+          _pinCodeId = matched.pincodeId;
           pinCodeController.text = matched.pincode;
         } catch (_) {}
       }
@@ -205,6 +231,7 @@ class _VCPApplicationState extends State<VCPApplication> {
   void _onPinCodeSelected(PinCodeItem pin) {
     setState(() {
       _selectedPinCode = pin;
+      _pinCodeId = pin.pincodeId;
       pinCodeController.text = pin.pincode;
     });
   }
@@ -301,6 +328,9 @@ class _VCPApplicationState extends State<VCPApplication> {
       cityController.text = (m["city"] ?? "").toString();
       districtController.text = (m["district"] ?? "").toString();
       stateController.text = (m["stateName"] ?? "").toString();
+      _stateCode = m["stateCode"]?.toString();
+      _cityCode = m["cityCode"]?.toString();
+      _pinCodeId = m["pinCodeId"];
       individualAddressController.text = (m["address"] ?? "").toString();
       officeAddressController.text = (m["officeAddress"] ?? "").toString();
       telephoneController.text = (m["telephoneNumber"] ?? "").toString();
@@ -1549,6 +1579,9 @@ class _VCPApplicationState extends State<VCPApplication> {
         "city": cityController.text,
         "district": districtController.text,
         "stateName": stateController.text,
+        "stateCode": _selectedState?.cpProvince ?? _stateCode ?? "",
+        "cityCode": _selectedCity?.pcCity ?? _cityCode ?? "",
+        "pinCodeId": _selectedPinCode?.pincodeId ?? _pinCodeId ?? "",
         "address": individualAddressController.text,
         "isSameIndividualAddress": isSameIndividualAddress,
         "officeAddress": officeAddressController.text,

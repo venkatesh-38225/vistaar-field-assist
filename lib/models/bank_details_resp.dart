@@ -38,6 +38,7 @@ class BankDetailsResp {
 }
 
 class Data {
+  final String? bankBranchId;
   final String? bankCode;
   final String? bankName;
   final String? branchCode;
@@ -45,6 +46,7 @@ class Data {
   final String? micrCode;
 
   Data({
+    this.bankBranchId,
     this.bankCode,
     this.bankName,
     this.branchCode,
@@ -53,14 +55,16 @@ class Data {
   });
 
   factory Data.fromMap(Map<String, dynamic> json) => Data(
-        bankCode: json["bankCode"],
-        bankName: json["bankName"],
-        branchCode: json["ifscCode"],
-        branchName: json["branch"],
-        micrCode: json["micr"],
+        bankBranchId: (json["bankBranchId"] ?? json["branchId"])?.toString(),
+        bankCode: json["bankCode"]?.toString(),
+        bankName: json["bankName"]?.toString(),
+        branchCode: (json["bankBranchCode"] ?? json["branchCode"])?.toString(),
+        branchName: (json["branchName"] ?? json["branch"])?.toString(),
+        micrCode: (json["micrCode"] ?? json["micr"])?.toString(),
       );
 
   Map<String, dynamic> toMap() => {
+        "bankBranchId": bankBranchId,
         "bankCode": bankCode,
         "bankName": bankName,
         "branchCode": branchCode,

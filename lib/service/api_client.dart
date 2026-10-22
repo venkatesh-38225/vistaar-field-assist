@@ -281,6 +281,8 @@ class ApiClient {
 
   Future<EmailOtpRes?> mobileOtpSend(Object jsonObject) async {
     var url = Uri.parse("${baseUrl}VCP/VerifyVCPMobile");
+
+    print("URL mobile body : $jsonObject");
     final response = await _client
         .post(url,
             headers: {
@@ -288,6 +290,9 @@ class ApiClient {
             },
             body: jsonObject)
         .timeout(_timeLimit);
+
+    print("Resoponse mbile : ${response.statusCode}");
+    print("Resoponse body : ${response.body}");
 
     if (response.statusCode == 200) {
       var responseBody = response.body;
@@ -457,20 +462,42 @@ class ApiClient {
     }
   }
 
-  Future getBankDetails(String ifscCode) async {
-    var url =
-        Uri.parse('${legalNoticebaseUrl}Shared/getIfscDetails/${ifscCode}');
-    final response = await _client.get(url, headers: {
-      "Content-Type": "application/json",
-      "x-api-key": "ht9AfQrZmJnu0Gxl"
-    }).timeout(_timeLimit);
+  // Future getBankDetails(String ifscCode) async {
+  //   var url =
+  //       Uri.parse('${legalNoticebaseUrl}Shared/getIfscDetails/${ifscCode}');
+  //   final response = await _client.get(url, headers: {
+  //     "Content-Type": "application/json",
+  //     "x-api-key": "ht9AfQrZmJnu0Gxl"
+  //   }).timeout(_timeLimit);
 
-    if (response.statusCode == 200) {
-      var responseBody = response.body;
-      return BankDetailsResp.fromMap(json.decode(responseBody));
-    } else {
-      var responseBody = response.body;
-      return BankDetailsResp.fromMap(json.decode(responseBody));
+  //   if (response.statusCode == 200) {
+  //     var responseBody = response.body;
+  //     return BankDetailsResp.fromMap(json.decode(responseBody));
+  //   } else {
+  //     var responseBody = response.body;
+  //     return BankDetailsResp.fromMap(json.decode(responseBody));
+  //   }
+  // }
+
+  Future<BankDetailsResp?> getBankDetails(String ifscCode) async {
+    try {
+      var url = Uri.parse(
+          '${legalNoticebaseUrl}Shared/getBankDetailsByIfsc/$ifscCode');
+      final response = await _client.get(url, headers: {
+        "Content-Type": "application/json",
+        "x-api-key": _vistaarApiKey,
+      }).timeout(_timeLimit);
+
+      if (response.statusCode == 200) {
+        var responseBody = response.body;
+        return BankDetailsResp.fromMap(json.decode(responseBody));
+      } else {
+        var responseBody = response.body;
+        return BankDetailsResp.fromMap(json.decode(responseBody));
+      }
+    } catch (e) {
+      print("getBankDetails error: $e");
+      return null;
     }
   }
 
@@ -1511,9 +1538,8 @@ class ApiClient {
                   e['custName']?.toString() ??
                   e['CustName']?.toString() ??
                   '',
-              'category': e['category']?.toString() ??
-                  e['Category']?.toString() ??
-                  '',
+              'category':
+                  e['category']?.toString() ?? e['Category']?.toString() ?? '',
             };
           }
           return {

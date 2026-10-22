@@ -43,6 +43,7 @@ class _BankApplicationState extends State<BankApplication> {
   String? penipingValidateID;
   String? bankName;
   String? branchName;
+  String? bankBranchId;
   String? bankStatus;
   String? utrNo;
   bool isLoading = false;
@@ -69,6 +70,7 @@ class _BankApplicationState extends State<BankApplication> {
       setState(() {
         bankName = (ac["bankName"] ?? "").toString();
         branchName = (ac["branchName"] ?? "").toString();
+        bankBranchId = (ac["bankBranchId"] ?? m["bankBranchId"])?.toString();
       });
 
       // Optional: Prefill IDs/status if you show them
@@ -461,10 +463,11 @@ class _BankApplicationState extends State<BankApplication> {
     BankDetailsResp? response =
         await ApiClient().getBankDetails(ifscCode.text.toString());
     if (response != null) {
-      if (response.success!) {
+      if (response.success == true) {
         setState(() {
-          bankName = response.data!.bankName;
-          branchName = response.data!.branchName;
+          bankName = response.data?.bankName;
+          branchName = response.data?.branchName;
+          bankBranchId = response.data?.bankBranchId;
         });
       } else {
         String errorMsg = "Please provide a valid IFSC code";
@@ -604,8 +607,10 @@ class _BankApplicationState extends State<BankApplication> {
           "acHolderName": accountHolderName.text,
           "ifscCode": ifscCode.text,
           "bankName": bankName,
-          "branchName": branchName
+          "branchName": branchName,
+          "bankBranchId": bankBranchId ?? ""
         },
+        "bankBranchId": bankBranchId ?? "",
         "contactID": penipingContactID,
         "fundAcID": penipingFundID,
         "fundAcValidationID": penipingValidateID,

@@ -202,6 +202,7 @@ class BankAcDetails {
   final String? ifscCode;
   final String? bankName;
   final String? branchName;
+  final String? bankBranchId;
 
   BankAcDetails({
     this.bankAcNo,
@@ -209,6 +210,7 @@ class BankAcDetails {
     this.ifscCode,
     this.bankName,
     this.branchName,
+    this.bankBranchId,
   });
 
   factory BankAcDetails.fromMap(Map<String, dynamic> json) => BankAcDetails(
@@ -217,6 +219,7 @@ class BankAcDetails {
     ifscCode: json["ifscCode"],
     bankName: json["bankName"],
     branchName: json["branchName"],
+    bankBranchId: json["bankBranchId"]?.toString(),
   );
 
   Map<String, dynamic> toMap() => {
@@ -225,6 +228,7 @@ class BankAcDetails {
     "ifscCode": ifscCode,
     "bankName": bankName,
     "branchName": branchName,
+    "bankBranchId": bankBranchId,
   };
 }
 
@@ -275,6 +279,9 @@ class BasicDetails {
   final String? agencyName;
   final String? businessName;
   final bool? isSameIndividualAddress;
+  final String? stateCode;
+  final String? cityCode;
+  final dynamic pinCodeId;
 
   BasicDetails({
     this.name,
@@ -302,7 +309,10 @@ class BasicDetails {
     this.eduQualification,
     this.agencyName,
     this.businessName,
-    this.isSameIndividualAddress
+    this.isSameIndividualAddress,
+    this.stateCode,
+    this.cityCode,
+    this.pinCodeId,
   });
 
   factory BasicDetails.fromMap(Map<String, dynamic> json) => BasicDetails(
@@ -331,7 +341,10 @@ class BasicDetails {
     eduQualification: json["eduQualification"],
     agencyName: json["agencyName"],
     businessName: json["businessName"],
-    isSameIndividualAddress: json["isSameIndividualAddress"]
+    isSameIndividualAddress: json["isSameIndividualAddress"],
+    stateCode: json["stateCode"]?.toString(),
+    cityCode: json["cityCode"]?.toString(),
+    pinCodeId: json["pinCodeId"],
   );
 
   Map<String, dynamic> toMap() => {
@@ -361,6 +374,9 @@ class BasicDetails {
     "agencyName": agencyName,
     "businessName": businessName,
     "isSameIndividualAddress": isSameIndividualAddress,
+    "stateCode": stateCode,
+    "cityCode": cityCode,
+    "pinCodeId": pinCodeId,
   };
 }
 
