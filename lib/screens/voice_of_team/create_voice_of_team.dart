@@ -118,6 +118,44 @@ class _CreateVoiceOfTeamScreenState extends State<CreateVoiceOfTeamScreen> {
     super.dispose();
   }
 
+  void _clearLanDetails() {
+    custName = '';
+    branchCode = '';
+    branchName = '';
+    region = '';
+    zone = '';
+    megaZone = '';
+    state = '';
+    disbAmount = '';
+    disbDate = '';
+    maturityDate = '';
+    dpd = '';
+    loanAmount = '';
+    principalOutstanding = '';
+    custAddress = '';
+  }
+
+  String? _extractErrorMessage(dynamic response) {
+    if (response == null) return null;
+    if (response is String) {
+      final trimmed = response.trim();
+      return trimmed.isNotEmpty ? trimmed : null;
+    }
+    if (response is Map) {
+      final msg = response['message'] ??
+          response['error'] ??
+          response['errorMsg'] ??
+          response['msg'] ??
+          response['detail'] ??
+          response['details'] ??
+          response['statusText'];
+      if (msg != null && msg.toString().trim().isNotEmpty) {
+        return msg.toString().trim();
+      }
+    }
+    return null;
+  }
+
   Future<void> _searchLanDetails() async {
     final lan = lanController.text.trim().toUpperCase();
     if (lan.isEmpty) {
@@ -132,15 +170,21 @@ class _CreateVoiceOfTeamScreenState extends State<CreateVoiceOfTeamScreen> {
     setState(() {
       isLanSearching = true;
       isDetailsFetched = false;
+      _clearLanDetails();
     });
 
     try {
       final response = await ApiClient().getLanNoticeDetails(lan);
-      final foreClosureResponse = await ApiClient().getForeClosureDetails(lan);
 
       if (!mounted) return;
 
-      if (response is LoanDetailsResponse && response.fullName != null) {
+      if (response is LoanDetailsResponse &&
+          response.fullName != null &&
+          response.fullName!.trim().isNotEmpty) {
+        final foreClosureResponse =
+            await ApiClient().getForeClosureDetails(lan);
+        if (!mounted) return;
+
         setState(() {
           custName = response.fullName ?? '';
           branchCode = response.branch?.branchCode ?? '';
@@ -164,12 +208,36 @@ class _CreateVoiceOfTeamScreenState extends State<CreateVoiceOfTeamScreen> {
           isDetailsFetched = true;
           isLanSearching = false;
         });
-      } else if (response is Map<String, dynamic>) {
-        final data = response['data'] ?? response;
+      } else if (response is Map<String, dynamic> &&
+          (response['success'] == true ||
+              (response['data'] is Map &&
+                  (response['data']['custName'] != null ||
+                      response['data']['fullName'] != null)) ||
+              (response['custName'] != null ||
+                  response['fullName'] != null))) {
+        final data = response['data'] is Map ? response['data'] : response;
+        final name = data['custName']?.toString() ??
+            data['fullName']?.toString() ??
+            '';
+
+        if (name.trim().isEmpty) {
+          final errMsg = _extractErrorMessage(response) ??
+              'No details found for the entered LAN';
+          setState(() {
+            isLanSearching = false;
+            isDetailsFetched = false;
+            _clearLanDetails();
+          });
+          GlobalSnackbar.showError(errMsg);
+          return;
+        }
+
+        final foreClosureResponse =
+            await ApiClient().getForeClosureDetails(lan);
+        if (!mounted) return;
+
         setState(() {
-          custName = data['custName']?.toString() ??
-              data['fullName']?.toString() ??
-              '';
+          custName = name;
           branchCode = data['branchCode']?.toString() ??
               data['branch']?['branchCode']?.toString() ??
               '';
@@ -200,7 +268,8 @@ class _CreateVoiceOfTeamScreenState extends State<CreateVoiceOfTeamScreen> {
               data['disbAmount']?.toString() ??
               data['totalOutstanding']?.toString() ??
               '';
-          principalOutstanding = data['principalOutstanding']?.toString() ??
+          principalOutstanding = foreClosureResponse?.pos?.toString() ??
+              data['principalOutstanding']?.toString() ??
               data['pos']?.toString() ??
               '';
           custAddress = data['residentialAddress']?.toString() ??
@@ -212,17 +281,21 @@ class _CreateVoiceOfTeamScreenState extends State<CreateVoiceOfTeamScreen> {
           isLanSearching = false;
         });
       } else {
+        final errMsg = _extractErrorMessage(response) ??
+            'No details found for the entered LAN';
         setState(() {
           isLanSearching = false;
           isDetailsFetched = false;
+          _clearLanDetails();
         });
-        GlobalSnackbar.showError('No details found for the entered LAN');
+        GlobalSnackbar.showError(errMsg);
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           isLanSearching = false;
           isDetailsFetched = false;
+          _clearLanDetails();
         });
         GlobalSnackbar.showError('Failed to fetch LAN details: $e');
       }
@@ -314,7 +387,7 @@ class _CreateVoiceOfTeamScreenState extends State<CreateVoiceOfTeamScreen> {
   Future<void> _submitVoiceOfTeam() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (!isDetailsFetched) {
+    if (!isDetailsFetched || custName.trim().isEmpty) {
       GlobalSnackbar.showError('Please search and load LAN details first');
       return;
     }
@@ -579,6 +652,14 @@ class _CreateVoiceOfTeamScreenState extends State<CreateVoiceOfTeamScreen> {
               readOnly: isPrefilled,
               textCapitalization: TextCapitalization.characters,
               inputFormatters: [UpperCaseTextFormatter()],
+              onChanged: (val) {
+                if (isDetailsFetched) {
+                  setState(() {
+                    isDetailsFetched = false;
+                    _clearLanDetails();
+                  });
+                }
+              },
               decoration: InputDecoration(
                 labelText: 'LAN Number *',
                 hintText: 'Enter LAN number',

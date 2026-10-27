@@ -552,20 +552,37 @@ class ApiClient {
     var url =
         Uri.parse('https://api.razorpay.com/v1/fund_accounts/validations');
 
-    final response = await _client
-        .post(url,
-            headers: {
-              "Content-Type": "application/json",
-              'Authorization': basicAuth,
-            },
-            body: jsonObject)
-        .timeout(_timeLimit);
+    print("================== penipingAccountValidation REQUEST ==================");
+    print("URL: $url");
+    print("Body: $jsonObject");
+    print("=======================================================================");
 
-    if (response.statusCode == 200) {
-      var responseBody = response.body;
+    try {
+      final response = await _client
+          .post(url,
+              headers: {
+                "Content-Type": "application/json",
+                'Authorization': basicAuth,
+              },
+              body: jsonObject)
+          .timeout(_timeLimit);
 
-      return PenipingAccountValidate.fromMap(json.decode(responseBody));
-    } else {
+      print("================== penipingAccountValidation RESPONSE =================");
+      print("Status Code: ${response.statusCode}");
+      print("Response Body: ${response.body}");
+      print("=======================================================================");
+
+      if (response.statusCode == 200) {
+        var responseBody = response.body;
+
+        return PenipingAccountValidate.fromMap(json.decode(responseBody));
+      } else {
+        return null;
+      }
+    } catch (e) {
+      print("================== penipingAccountValidation ERROR ====================");
+      print("Error: $e");
+      print("=======================================================================");
       return null;
     }
   }
@@ -658,11 +675,16 @@ class ApiClient {
           legal: data['legal'] != null ? Legal.fromJson(data['legal']) : null,
         );
       }
-      return responseBody['message'];
+      return responseBody['message'] ??
+          responseBody['error'] ??
+          'LAN details not found';
     } else {
-      var responseBody = json.decode(response.body);
-
-      return responseBody;
+      try {
+        var responseBody = json.decode(response.body);
+        return responseBody;
+      } catch (_) {
+        return {'message': 'Server error (${response.statusCode})'};
+      }
     }
   }
 
@@ -730,20 +752,37 @@ class ApiClient {
 
   Future<Map<String, dynamic>?> vcpBankDetails(Object jsonObject) async {
     var url = Uri.parse('${baseUrl}VCP/AddVCPBankDetails');
-    final response = await _client
-        .post(url,
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: jsonObject)
-        .timeout(_timeLimit);
+    print("================== AddVCPBankDetails REQUEST ==================");
+    print("URL: $url");
+    print("Body: $jsonObject");
+    print("===============================================================");
 
-    if (response.statusCode == 200) {
-      var responseBody = response.body;
+    try {
+      final response = await _client
+          .post(url,
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: jsonObject)
+          .timeout(_timeLimit);
 
-      Map<String, dynamic> value = json.decode(responseBody);
-      return value;
-    } else {
+      print("================== AddVCPBankDetails RESPONSE =================");
+      print("Status Code: ${response.statusCode}");
+      print("Response Body: ${response.body}");
+      print("===============================================================");
+
+      if (response.statusCode == 200) {
+        var responseBody = response.body;
+
+        Map<String, dynamic> value = json.decode(responseBody);
+        return value;
+      } else {
+        return null;
+      }
+    } catch (e) {
+      print("================== AddVCPBankDetails ERROR ====================");
+      print("Error: $e");
+      print("===============================================================");
       return null;
     }
   }

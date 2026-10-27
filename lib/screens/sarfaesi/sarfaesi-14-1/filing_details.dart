@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:re_kyc_mobile_app/models/physical_filing_response.dart';
@@ -48,13 +49,23 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen>
   String? _courtsErrorMessage;
   bool _isSubmitting = false;
   bool _isSubmittingRequirement = false;
+  bool _dismissPhysicalDocs = false;
+  bool _dismissAdditionalDocs = false;
 
   late AnimationController _alertAnimationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _scaleAnimation;
 
-  bool get _showDocumentRequirementsBanner => _details != null;
+  bool get _showDocumentRequirementsBanner {
+    if (_details == null) return false;
+    final isScannedCopy =
+        _details?.documentTransmissionType?.trim().toLowerCase() ==
+            'scanned copy';
+    final hasPhysicalDocs = isScannedCopy && !_dismissPhysicalDocs;
+    final hasAdditionalDocs = !_dismissAdditionalDocs;
+    return hasPhysicalDocs || hasAdditionalDocs;
+  }
 
   bool get _isEFiling => _filingType == 'E-Filing';
 
@@ -273,7 +284,9 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen>
           'Question': '$questionType Required?',
           'Selected': isYes ? 'Yes' : 'No',
         },
-        message: 'This will save your choice and return to the case list.',
+        message: isYes
+            ? 'This will save your choice and return to the dashboard.'
+            : 'This will save your choice and refresh the current page.',
         confirmText: 'Submit',
         showInputField: !isPhysicalDocs,
         inputLabel: 'Comments',
@@ -312,7 +325,11 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen>
             response?['message']?.toString() ??
                 '$questionType requirement submitted successfully',
           );
-          Get.back(result: true);
+          if (isYes) {
+            Get.back(result: true);
+          } else {
+            await _loadData();
+          }
         } else {
           GlobalSnackbar.showError(
             response?['message']?.toString() ?? 'Failed to submit requirement',
@@ -504,10 +521,6 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (_showDocumentRequirementsBanner) ...[
-                _buildDocumentRequirementsAlertBanner(),
-                const SizedBox(height: 14),
-              ],
               _buildCaseDetailsCard(_details!),
               const SizedBox(height: 18),
               const CustomText(
@@ -569,6 +582,10 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen>
                 _buildLabel('Physical Filing Case Number *'),
                 TextFormField(
                   controller: _physicalFilingCaseNumberController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
                   decoration:
                       _inputDecoration('Enter Physical Filing Case Number'),
                   validator: _requiredValidator('Physical filing case number'),
@@ -606,6 +623,20 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen>
                     color: Colors.white,
                   ),
                 ),
+              ),
+              AnimatedCrossFade(
+                duration: const Duration(milliseconds: 350),
+                firstCurve: Curves.easeInOut,
+                secondCurve: Curves.easeInOut,
+                sizeCurve: Curves.easeInOut,
+                crossFadeState: _showDocumentRequirementsBanner
+                    ? CrossFadeState.showFirst
+                    : CrossFadeState.showSecond,
+                firstChild: Padding(
+                  padding: const EdgeInsets.only(top: 20),
+                  child: _buildDocumentRequirementsAlertBanner(),
+                ),
+                secondChild: const SizedBox.shrink(),
               ),
             ],
           ),
@@ -905,6 +936,32 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen>
         value?.trim().isEmpty ?? true ? '$fieldName is required' : null;
   }
 
+  void _dismissQuestion(String questionType) {
+    setState(() {
+      if (questionType == 'Physical Documents') {
+        _dismissPhysicalDocs = true;
+      } else {
+        _dismissAdditionalDocs = true;
+      }
+    });
+  }
+
+  Widget _buildAnimatedQuestionRow({
+    required bool isVisible,
+    required Widget child,
+  }) {
+    return AnimatedCrossFade(
+      duration: const Duration(milliseconds: 300),
+      firstCurve: Curves.easeInOut,
+      secondCurve: Curves.easeInOut,
+      sizeCurve: Curves.easeInOut,
+      crossFadeState:
+          isVisible ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+      firstChild: child,
+      secondChild: const SizedBox.shrink(),
+    );
+  }
+
   Widget _buildDocumentRequirementsAlertBanner() {
     final isScannedCopy =
         _details?.documentTransmissionType?.trim().toLowerCase() ==
@@ -919,18 +976,18 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen>
             width: double.infinity,
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFF8E1),
-              borderRadius: BorderRadius.circular(12),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: const Color(0xFFFFB74D),
-                width: 1.5,
+                color: const Color(0xFFE2E8F0),
+                width: 1.2,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFF57C00).withValues(alpha: 0.14),
-                  blurRadius: 10,
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 8,
                   spreadRadius: 1,
-                  offset: const Offset(0, 3),
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
@@ -939,19 +996,12 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen>
               children: [
                 Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFA000).withValues(alpha: 0.18),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.warning_amber_rounded,
-                        color: Color(0xFFE65100),
-                        size: 20,
-                      ),
+                    const Icon(
+                      Icons.description_outlined,
+                      color: Constant.mediumBlueColor,
+                      size: 20,
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -960,7 +1010,7 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen>
                             text: 'Document Requirements',
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFFBF360C),
+                            color: Color(0xFF102F54),
                           ),
                           const SizedBox(height: 2),
                           CustomText(
@@ -968,7 +1018,7 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen>
                                 ? 'Scanned transmission mode detected (Optional)'
                                 : 'Document requirement confirmation (Optional)',
                             fontSize: 11,
-                            color: const Color(0xFF8D4B00),
+                            color: Colors.grey.shade600,
                           ),
                         ],
                       ),
@@ -979,21 +1029,66 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen>
                         height: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Color(0xFFE65100),
+                          color: Constant.mediumBlueColor,
                         ),
                       ),
                   ],
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 if (isScannedCopy) ...[
-                  Container(
+                  _buildAnimatedQuestionRow(
+                    isVisible: !_dismissPhysicalDocs,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: const Color(0xFFE2E8F0),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Expanded(
+                              child: CustomText(
+                                text: 'Physical Documents Required?',
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF1E293B),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _buildChoiceButton(
+                              questionType: 'Physical Documents',
+                              label: 'Yes',
+                              isYes: true,
+                            ),
+                            const SizedBox(width: 8),
+                            _buildChoiceButton(
+                              questionType: 'Physical Documents',
+                              label: 'No',
+                              isYes: false,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                _buildAnimatedQuestionRow(
+                  isVisible: !_dismissAdditionalDocs,
+                  child: Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.85),
+                      color: const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: const Color(0xFFFFE082),
+                        color: const Color(0xFFE2E8F0),
                         width: 1,
                       ),
                     ),
@@ -1001,63 +1096,26 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen>
                       children: [
                         const Expanded(
                           child: CustomText(
-                            text: 'Physical Documents Required?',
+                            text: 'Additional Documents Required?',
                             fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF1E293B),
                           ),
                         ),
                         const SizedBox(width: 8),
                         _buildChoiceButton(
-                          questionType: 'Physical Documents',
+                          questionType: 'Additional Documents',
                           label: 'Yes',
                           isYes: true,
                         ),
                         const SizedBox(width: 8),
                         _buildChoiceButton(
-                          questionType: 'Physical Documents',
+                          questionType: 'Additional Documents',
                           label: 'No',
                           isYes: false,
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: const Color(0xFFFFE082),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Expanded(
-                        child: CustomText(
-                          text: 'Additional Documents Required?',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      _buildChoiceButton(
-                        questionType: 'Additional Documents',
-                        label: 'Yes',
-                        isYes: true,
-                      ),
-                      const SizedBox(width: 8),
-                      _buildChoiceButton(
-                        questionType: 'Additional Documents',
-                        label: 'No',
-                        isYes: false,
-                      ),
-                    ],
                   ),
                 ),
               ],
@@ -1073,15 +1131,17 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen>
     required String label,
     required bool isYes,
   }) {
+    final isYesButton = isYes;
     return SizedBox(
       height: 32,
       child: OutlinedButton(
         style: OutlinedButton.styleFrom(
-          side: const BorderSide(
-            color: Color(0xFFE65100),
+          side: BorderSide(
+            color: isYesButton ? Constant.mediumBlueColor : Colors.grey.shade400,
             width: 1.2,
           ),
-          foregroundColor: const Color(0xFFE65100),
+          foregroundColor:
+              isYesButton ? Constant.mediumBlueColor : Colors.grey.shade700,
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(6),
@@ -1090,16 +1150,22 @@ class _FilingDetailsScreenState extends State<FilingDetailsScreen>
         ),
         onPressed: (_isLoading || _isSubmitting || _isSubmittingRequirement)
             ? null
-            : () => _confirmAndSubmitRequirement(
-                  questionType: questionType,
-                  isYes: isYes,
-                ),
+            : () {
+                if (isYes) {
+                  _confirmAndSubmitRequirement(
+                    questionType: questionType,
+                    isYes: true,
+                  );
+                } else {
+                  _dismissQuestion(questionType);
+                }
+              },
         child: Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.bold,
-            color: Color(0xFFE65100),
+            color: isYesButton ? Constant.mediumBlueColor : Colors.grey.shade700,
           ),
         ),
       ),

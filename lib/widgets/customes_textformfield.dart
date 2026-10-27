@@ -16,6 +16,8 @@ class BuildTextField extends StatelessWidget {
     this.counterText,
     this.maxLength,
     this.isEnabled,
+    this.autovalidateMode,
+    this.onChanged,
     required this.label,
   });
 
@@ -32,6 +34,8 @@ class BuildTextField extends StatelessWidget {
   final int? maxLength;
   final String label;
   final bool? isEnabled;
+  final AutovalidateMode? autovalidateMode;
+  final ValueChanged<String>? onChanged;
 
   final double? padding;
 
@@ -45,27 +49,33 @@ class BuildTextField extends StatelessWidget {
         obscureText: obscureText ?? false,
         controller: controller,
         onSaved: onSaved,
+        onChanged: onChanged,
+        autovalidateMode: autovalidateMode,
         maxLength: maxLength,
-        textCapitalization: textCapitalization != null ? textCapitalization!  : TextCapitalization.none,
+        textCapitalization: textCapitalization != null
+            ? textCapitalization!
+            : TextCapitalization.none,
         validator: validator,
         keyboardType: inputType ?? TextInputType.text,
-        maxLines: isMultiline! ? 2 : 1,
+        maxLines: (isMultiline ?? false) ? 2 : 1,
         decoration: InputDecoration(
-          label: Text(label, style: TextStyle(color: Colors.grey[700]),),
-          hintText: hint,
-          hintStyle: TextStyle(color: Colors.grey[700]),
-          filled: true,
-          fillColor: Colors.grey[200],
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide.none),
-          prefixIcon: Padding(
-              padding: padding != null
-                  ? EdgeInsets.only(bottom: padding!)
-                  : const EdgeInsets.all(0),
-              child: Icon(icon, color: Colors.blueGrey)),
-          counterText: counterText ?? ""
-        ),
+            label: Text(
+              label,
+              style: TextStyle(color: Colors.grey[700]),
+            ),
+            hintText: hint,
+            hintStyle: TextStyle(color: Colors.grey[700]),
+            filled: true,
+            fillColor: Colors.grey[200],
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide.none),
+            prefixIcon: Padding(
+                padding: padding != null
+                    ? EdgeInsets.only(bottom: padding!)
+                    : const EdgeInsets.all(0),
+                child: Icon(icon, color: Colors.blueGrey)),
+            counterText: counterText ?? ""),
       ),
     );
   }

@@ -60,7 +60,7 @@ class _VCPApplicationState extends State<VCPApplication> {
   TextEditingController remarkController = TextEditingController();
   TextEditingController fathersNameController = TextEditingController();
   TextEditingController educationQualificationController =
-  TextEditingController();
+      TextEditingController();
   TextEditingController businessNameController = TextEditingController();
   TextEditingController agencyNameController = TextEditingController();
   String? selectedGender;
@@ -254,12 +254,12 @@ class _VCPApplicationState extends State<VCPApplication> {
       });
     }
   }
+
   @override
   void initState() {
     super.initState();
     _applyBasicPrefillIfAny();
     _fetchStates();
-
 
     individualAddressController.addListener(() {
       // If checkbox is checked, automatically update office address
@@ -269,7 +269,6 @@ class _VCPApplicationState extends State<VCPApplication> {
         });
       }
     });
-
   }
 
   void _parseAndSetDOB(String? dobString) {
@@ -288,7 +287,6 @@ class _VCPApplicationState extends State<VCPApplication> {
   }
 
   String? _mapCompanyType(String? apiValue) {
-
     if (apiValue == null || apiValue == "") return null;
     switch (apiValue.toLowerCase()) {
       case 'partnership':
@@ -307,7 +305,6 @@ class _VCPApplicationState extends State<VCPApplication> {
   void _applyBasicPrefillIfAny() {
     final args = Get.arguments;
 
-
     if (args is Map && args["basicDetails"] is Map) {
       submittedId = args["id"];
       final isSentBack = args["isSentBack"];
@@ -322,7 +319,8 @@ class _VCPApplicationState extends State<VCPApplication> {
       nameController.text = (m["name"] ?? "").toString();
       mobileNoController.text = (m["mobile"] ?? "").toString();
       emailController.text = (m["email"] ?? "").toString();
-      companyRegNoController.text = (m["companyRegistrationNo"] ?? "").toString();
+      companyRegNoController.text =
+          (m["companyRegistrationNo"] ?? "").toString();
       designationController.text = (m["designation"] ?? "").toString();
       pinCodeController.text = (m["pincode"] ?? "").toString();
       cityController.text = (m["city"] ?? "").toString();
@@ -339,7 +337,8 @@ class _VCPApplicationState extends State<VCPApplication> {
       companyType = m["companyType"]?.toString();
       selectedGender = m["gender"]?.toString();
       fathersNameController.text = (m["fatherName"] ?? "").toString();
-      educationQualificationController.text = (m["eduQualification"] ?? "").toString();
+      educationQualificationController.text =
+          (m["eduQualification"] ?? "").toString();
       agencyNameController.text = (m["agencyName"] ?? "").toString();
       businessNameController.text = (m["businessName"] ?? "").toString();
       // Map API company type to dropdown display value
@@ -347,21 +346,25 @@ class _VCPApplicationState extends State<VCPApplication> {
 
       selectedGender = m["gender"]?.toString();
       fathersNameController.text = (m["fatherName"] ?? "").toString();
-      educationQualificationController.text = (m["eduQualification"] ?? "").toString();
+      educationQualificationController.text =
+          (m["eduQualification"] ?? "").toString();
       agencyNameController.text = (m["agencyName"] ?? "").toString();
       businessNameController.text = (m["businessName"] ?? "").toString();
 
-      if (m["mobileStatus"] == "Validated" || m["mobileStatus"] == "Y" || isSentBackValue) {
+      if (m["mobileStatus"] == "Validated" ||
+          m["mobileStatus"] == "Y" ||
+          isSentBackValue) {
         mobileValidation = "Validated";
       }
 
       // Check email status
-      if (m["emailStatus"] == "Validated" || m["emailStatus"] == "Y" || isSentBackValue) {
+      if (m["emailStatus"] == "Validated" ||
+          m["emailStatus"] == "Y" ||
+          isSentBackValue) {
         emailValidation = "Validated";
       }
 
       _parseAndSetDOB(m["dobAsperPAN"]?.toString());
-
     }
   }
 
@@ -439,7 +442,6 @@ class _VCPApplicationState extends State<VCPApplication> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 20),
               const CustomText(
                 text: 'Basic Details',
@@ -592,7 +594,8 @@ class _VCPApplicationState extends State<VCPApplication> {
                                       //     "Please enter your valid mobile no",
                                       //     backgroundColor: Colors.redAccent,
                                       //     colorText: Colors.white);
-                                      GlobalSnackbar.showError("Please enter your valid mobile no");
+                                      GlobalSnackbar.showError(
+                                          "Please enter your valid mobile no");
                                     }
                                   },
                                   child: SizedBox(
@@ -679,7 +682,8 @@ class _VCPApplicationState extends State<VCPApplication> {
                                       //     "Please enter your valid mobile no",
                                       //     backgroundColor: Colors.redAccent,
                                       //     colorText: Colors.white);
-                                      GlobalSnackbar.showError("Please enter your valid mobile no");
+                                      GlobalSnackbar.showError(
+                                          "Please enter your valid mobile no");
                                     }
                                   },
                                   child: SizedBox(
@@ -775,7 +779,8 @@ class _VCPApplicationState extends State<VCPApplication> {
                         //     "Success", "Mobile no is validated successfully",
                         //     backgroundColor: Colors.green,
                         //     colorText: Colors.white);
-                        GlobalSnackbar.showSuccess("Mobile no is validated successfully");
+                        GlobalSnackbar.showSuccess(
+                            "Mobile no is validated successfully");
                       } else {
                         // Get.snackbar("Failed", "OTP is not matching",
                         //     backgroundColor: Colors.redAccent,
@@ -868,16 +873,19 @@ class _VCPApplicationState extends State<VCPApplication> {
                                           //     "Email verification is not allowed for @vistaarfinance.com",
                                           //     backgroundColor: Colors.redAccent,
                                           //     colorText: Colors.white);
-                                          GlobalSnackbar.showError("Email verification is not allowed for @vistaarfinance.com");
+                                          GlobalSnackbar.showError(
+                                              "Email verification is not allowed for @vistaarfinance.com");
                                         } else {
                                           emailOtpApi(
                                               email: emailController.text);
                                         }
                                       } else {
-                                        GlobalSnackbar.showError("Please Provide a valid email Id");
+                                        GlobalSnackbar.showError(
+                                            "Please Provide a valid email Id");
                                       }
                                     } else {
-                                      GlobalSnackbar.showError("Please enter your email Id");
+                                      GlobalSnackbar.showError(
+                                          "Please enter your email Id");
                                     }
                                   },
                                   child: SizedBox(
@@ -965,7 +973,8 @@ class _VCPApplicationState extends State<VCPApplication> {
                                           //     "Email verification is not allowed for @vistaarfinance.com",
                                           //     backgroundColor: Colors.redAccent,
                                           //     colorText: Colors.white);
-                                          GlobalSnackbar.showError("Email verification is not allowed for @vistaarfinance.com");
+                                          GlobalSnackbar.showError(
+                                              "Email verification is not allowed for @vistaarfinance.com");
                                         } else {
                                           emailOtpApi(email: widget.email!);
                                         }
@@ -974,14 +983,16 @@ class _VCPApplicationState extends State<VCPApplication> {
                                         //     "Please Provide a valid email Id",
                                         //     backgroundColor: Colors.redAccent,
                                         //     colorText: Colors.white);
-                                        GlobalSnackbar.showError("Please Provide a valid email Id");
+                                        GlobalSnackbar.showError(
+                                            "Please Provide a valid email Id");
                                       }
                                     } else {
                                       // Get.snackbar("Failed",
                                       //     "Please enter your email Id",
                                       //     backgroundColor: Colors.redAccent,
                                       //     colorText: Colors.white);
-                                      GlobalSnackbar.showError("Please enter your email Id");
+                                      GlobalSnackbar.showError(
+                                          "Please enter your email Id");
                                     }
                                   },
                                   child: SizedBox(
@@ -1079,7 +1090,8 @@ class _VCPApplicationState extends State<VCPApplication> {
                         //     "Success", "Email is validated successfully",
                         //     backgroundColor: Colors.green,
                         //     colorText: Colors.white);
-                        GlobalSnackbar.showSuccess("Email is validated successfully");
+                        GlobalSnackbar.showSuccess(
+                            "Email is validated successfully");
                       } else {
                         // Get.snackbar("Failed", "OTP is not matching",
                         //     backgroundColor: Colors.redAccent,
@@ -1325,21 +1337,24 @@ class _VCPApplicationState extends State<VCPApplication> {
                 isMultiline: true,
                 // padding: 50,
                 controller: individualAddressController,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 onSaved: (String? value) {
                   setState(() {
                     individualAddressController.text = value!;
                     if (isSameIndividualAddress) {
                       officeAddressController.text = value;
                     }
-
                   });
                 },
                 validator: (value) {
-                  if (value!.isEmpty) {
+                  if (value == null || value.trim().isEmpty) {
                     return 'Required';
-                  } else {
-                    return null;
                   }
+                  final addressRegex = RegExp(r'^[a-zA-Z0-9\s]+$');
+                  if (!addressRegex.hasMatch(value)) {
+                    return 'Special characters are not allowed';
+                  }
+                  return null;
                 },
               ),
               CheckboxListTile(
@@ -1350,7 +1365,8 @@ class _VCPApplicationState extends State<VCPApplication> {
 
                     // If checked, copy individual address to office address
                     if (isSameIndividualAddress) {
-                      officeAddressController.text = individualAddressController.text;
+                      officeAddressController.text =
+                          individualAddressController.text;
                     } else {
                       // If unchecked, clear office address
                       officeAddressController.text = '';
@@ -1367,9 +1383,9 @@ class _VCPApplicationState extends State<VCPApplication> {
                 controlAffinity: ListTileControlAffinity.leading,
                 contentPadding: EdgeInsets.zero,
                 dense: true,
-                activeColor: Constant.mediumBlueColor, // Use your app's primary color
+                activeColor:
+                    Constant.mediumBlueColor, // Use your app's primary color
               ),
-
               BuildTextField(
                 hint: 'Office Address',
                 label: 'Office Address',
@@ -1378,17 +1394,21 @@ class _VCPApplicationState extends State<VCPApplication> {
                 // padding: 50,
                 controller: officeAddressController,
                 isEnabled: !isSameIndividualAddress,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 onSaved: (String? value) {
                   setState(() {
                     officeAddressController.text = value!;
                   });
                 },
                 validator: (value) {
-                  if (value!.isEmpty) {
+                  if (value == null || value.trim().isEmpty) {
                     return 'Required';
-                  } else {
-                    return null;
                   }
+                  final addressRegex = RegExp(r'^[a-zA-Z0-9\s]+$');
+                  if (!addressRegex.hasMatch(value)) {
+                    return 'Special characters are not allowed';
+                  }
+                  return null;
                 },
               ),
               BuildTextField(
@@ -1434,6 +1454,20 @@ class _VCPApplicationState extends State<VCPApplication> {
                     onPressed: () {
                       var form = _basicDetailsFormKey.currentState;
                       if (form!.validate()) {
+                        final addressRegex = RegExp(r'^[a-zA-Z0-9\s]+$');
+                        if (!addressRegex
+                            .hasMatch(individualAddressController.text)) {
+                          GlobalSnackbar.showError(
+                              "Individual Address contains invalid special characters");
+                          return;
+                        }
+                        if (!isSameIndividualAddress &&
+                            !addressRegex
+                                .hasMatch(officeAddressController.text)) {
+                          GlobalSnackbar.showError(
+                              "Office Address contains invalid special characters");
+                          return;
+                        }
                         if (emailValidation == 'Validated' &&
                             mobileValidation == 'Validated') {
                           saveBasicDetails();
@@ -1442,7 +1476,8 @@ class _VCPApplicationState extends State<VCPApplication> {
                           //     'Please validate your email Id and mobile no',
                           //     backgroundColor: Colors.redAccent,
                           //     colorText: Colors.white);
-                          GlobalSnackbar.showError("Please validate your email Id and mobile no");
+                          GlobalSnackbar.showError(
+                              "Please validate your email Id and mobile no");
                         }
                       }
                     },
@@ -1481,6 +1516,7 @@ class _VCPApplicationState extends State<VCPApplication> {
       ),
     );
   }
+
   Widget completedStepCircle() {
     return Container(
       height: 40,
@@ -1497,11 +1533,11 @@ class _VCPApplicationState extends State<VCPApplication> {
       ),
     );
   }
+
   Widget stepConnector(Color color) {
     return Expanded(
       child: Container(height: 4, color: color),
     );
-
   }
 
   void mobileOtpApi({required String mobileNo}) async {
@@ -1548,15 +1584,17 @@ class _VCPApplicationState extends State<VCPApplication> {
   }
 
   void saveBasicDetails() async {
-     // DateTime now = dobAsPan!.toUtc();
-     // log('dobAsPan - $dobAsPan');
-     // log('now - $now');
-     // String isoString = now.toIso8601String();
-     // log('isoString - ${dobAsPan?.toIso8601String()}');
+    // DateTime now = dobAsPan!.toUtc();
+    // log('dobAsPan - $dobAsPan');
+    // log('now - $now');
+    // String isoString = now.toIso8601String();
+    // log('isoString - ${dobAsPan?.toIso8601String()}');
 
     // Keep local date without timezone shift
-    DateTime localDate = DateTime(dobAsPan!.year, dobAsPan!.month, dobAsPan!.day);
-    String isoString = localDate.toIso8601String(); // e.g., 2000-01-02T00:00:00.000
+    DateTime localDate =
+        DateTime(dobAsPan!.year, dobAsPan!.month, dobAsPan!.day);
+    String isoString =
+        localDate.toIso8601String(); // e.g., 2000-01-02T00:00:00.000
 
     log('dobAsPan - $dobAsPan');
     log('isoString - $isoString');
@@ -1593,7 +1631,6 @@ class _VCPApplicationState extends State<VCPApplication> {
       "updatedby": widget.employeeId,
     };
 
-    
     log('basic details - ${json.encode(body)}');
     Map<String, dynamic>? response =
         await ApiClient().dsaBasicDetApi(json.encode(body));
@@ -1603,25 +1640,27 @@ class _VCPApplicationState extends State<VCPApplication> {
         //     backgroundColor: Colors.green, colorText: Colors.white);
         GlobalSnackbar.showSuccess("Basic details are saved successfully");
 
-        String safeCompanyType = companyType ?? "Proprietorship"; // Default value
-        String safeId = response["id"]?.toString() ?? ""; // Ensure id is not null
+        String safeCompanyType =
+            companyType ?? "Proprietorship"; // Default value
+        String safeId =
+            response["id"]?.toString() ?? ""; // Ensure id is not null
 
-        Get.to(() => BusinessApplication(
-          id: isSentBackValue ? submittedId.toString() : safeId,
-          employeeId: widget.employeeId,
-          companyType: safeCompanyType,
-          onboardType: widget.onboardType,
-            isSentBack: isSentBackValue,
-        ),
+        Get.to(
+            () => BusinessApplication(
+                  id: isSentBackValue ? submittedId.toString() : safeId,
+                  employeeId: widget.employeeId,
+                  companyType: safeCompanyType,
+                  onboardType: widget.onboardType,
+                  isSentBack: isSentBackValue,
+                ),
             arguments: {
               "id": submittedId,
               "isSentBack": isSentBackValue,
-              "businessDetails":businessDetails,
+              "businessDetails": businessDetails,
               "documents": documentDetails,
               "isSameIndividualAddress": isSameIndividualAddress,
               "bankDetails": bankDetails
-            }
-        );
+            });
       } else {
         // Get.snackbar("Failed", response["error"],
         //     backgroundColor: Colors.redAccent, colorText: Colors.white);

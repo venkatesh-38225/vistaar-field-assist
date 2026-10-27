@@ -46,6 +46,7 @@ class _BankApplicationState extends State<BankApplication> {
   String? bankBranchId;
   String? bankStatus;
   String? utrNo;
+  String? selectedAccountType;
   bool isLoading = false;
 
   @override
@@ -71,6 +72,15 @@ class _BankApplicationState extends State<BankApplication> {
         bankName = (ac["bankName"] ?? "").toString();
         branchName = (ac["branchName"] ?? "").toString();
         bankBranchId = (ac["bankBranchId"] ?? m["bankBranchId"])?.toString();
+
+        String? accType =
+            (ac["bankAcType"] ?? ac["accountType"] ?? ac["AccountType"])
+                ?.toString();
+        if (accType == "SA" || accType == "Savings Account") {
+          selectedAccountType = "Savings Account";
+        } else if (accType == "CA" || accType == "Current Account") {
+          selectedAccountType = "Current Account";
+        }
       });
 
       // Optional: Prefill IDs/status if you show them
@@ -377,6 +387,52 @@ class _BankApplicationState extends State<BankApplication> {
                   }
                 },
               ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: DropdownButtonFormField<String>(
+                  value: selectedAccountType,
+                  decoration: InputDecoration(
+                    labelText: 'Account Type',
+                    labelStyle: TextStyle(color: Colors.grey[700]),
+                    hintText: 'Account Type',
+                    hintStyle: TextStyle(color: Colors.grey[700]),
+                    filled: true,
+                    fillColor: Colors.grey[200],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none,
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.account_balance_wallet_outlined,
+                      color: Colors.blueGrey,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 14),
+                  ),
+                  isExpanded: true,
+                  items: const [
+                    DropdownMenuItem<String>(
+                      value: 'Savings Account',
+                      child: Text('Savings Account'),
+                    ),
+                    DropdownMenuItem<String>(
+                      value: 'Current Account',
+                      child: Text('Current Account'),
+                    ),
+                  ],
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Required';
+                    }
+                    return null;
+                  },
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      selectedAccountType = newValue;
+                    });
+                  },
+                ),
+              ),
               BuildTextField(
                 hint: 'Account No',
                 label: 'Account No',
@@ -413,8 +469,8 @@ class _BankApplicationState extends State<BankApplication> {
                 },
               ),
               bankName != null
-                  ? const SizedBox(height: 150)
-                  : const SizedBox(height: 300),
+                  ? const SizedBox(height: 80)
+                  : const SizedBox(height: 200),
               isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : Center(
@@ -432,6 +488,10 @@ class _BankApplicationState extends State<BankApplication> {
                                 //     colorText: Colors.white);
                                 GlobalSnackbar.showError(
                                     "Please verify your IFSC code");
+                              } else if (selectedAccountType == null ||
+                                  selectedAccountType!.isEmpty) {
+                                GlobalSnackbar.showError(
+                                    "Please select Account Type");
                               } else {
                                 if (accountNumber.text ==
                                     confirmAccountNumber.text) {
@@ -608,7 +668,8 @@ class _BankApplicationState extends State<BankApplication> {
           "ifscCode": ifscCode.text,
           "bankName": bankName,
           "branchName": branchName,
-          "bankBranchId": bankBranchId ?? ""
+          "bankBranchId": bankBranchId ?? "",
+          "bankAcType": selectedAccountType == "Savings Account" ? "SA" : "CA",
         },
         "bankBranchId": bankBranchId ?? "",
         "contactID": penipingContactID,
@@ -620,6 +681,7 @@ class _BankApplicationState extends State<BankApplication> {
       },
       "updatedBy": widget.employeeId
     };
+    print("Bank Details Body: ${body}");
     Map<String, dynamic>? response =
         await ApiClient().vcpBankDetails(json.encode(body));
     if (response != null) {

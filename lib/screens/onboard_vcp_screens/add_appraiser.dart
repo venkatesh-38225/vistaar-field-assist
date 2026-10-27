@@ -1499,6 +1499,7 @@ class _AddAppraiserState extends State<AddAppraiser> {
                 isMultiline: true,
                 // padding: 50,
                 controller: individualAddressController,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 onSaved: (String? value) {
                   setState(() {
                     individualAddressController.text = value!;
@@ -1508,11 +1509,14 @@ class _AddAppraiserState extends State<AddAppraiser> {
                   });
                 },
                 validator: (value) {
-                  if (value!.isEmpty) {
+                  if (value == null || value.trim().isEmpty) {
                     return 'Required';
-                  } else {
-                    return null;
                   }
+                  final addressRegex = RegExp(r'^[a-zA-Z0-9\s]+$');
+                  if (!addressRegex.hasMatch(value)) {
+                    return 'Special characters are not allowed';
+                  }
+                  return null;
                 },
               ),
               CheckboxListTile(
@@ -1555,17 +1559,21 @@ class _AddAppraiserState extends State<AddAppraiser> {
                 // padding: 50,
                 controller: officeAddressController,
                 isEnabled: !isSameIndividualAddress,
+                autovalidateMode: AutovalidateMode.onUserInteraction,
                 onSaved: (String? value) {
                   setState(() {
                     officeAddressController.text = value!;
                   });
                 },
                 validator: (value) {
-                  if (value!.isEmpty) {
+                  if (value == null || value.trim().isEmpty) {
                     return 'Required';
-                  } else {
-                    return null;
                   }
+                  final addressRegex = RegExp(r'^[a-zA-Z0-9\s]+$');
+                  if (!addressRegex.hasMatch(value)) {
+                    return 'Special characters are not allowed,  only numbers, letters and spaces are allowed';
+                  }
+                  return null;
                 },
               ),
               BuildTextField(
@@ -1617,6 +1625,20 @@ class _AddAppraiserState extends State<AddAppraiser> {
                             var form = _basicDetailsFormKey.currentState;
 
                             if (form!.validate()) {
+                              final addressRegex = RegExp(r'^[a-zA-Z0-9\s]+$');
+                              if (!addressRegex
+                                  .hasMatch(individualAddressController.text)) {
+                                GlobalSnackbar.showError(
+                                    'Individual Address contains invalid special characters');
+                                return;
+                              }
+                              if (!isSameIndividualAddress &&
+                                  !addressRegex
+                                      .hasMatch(officeAddressController.text)) {
+                                GlobalSnackbar.showError(
+                                    'Office Address contains invalid special characters');
+                                return;
+                              }
                               if (dobAsPan == null) {
                                 GlobalSnackbar.showError(
                                     'Please select DOB as per PAN');
