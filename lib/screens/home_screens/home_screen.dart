@@ -1675,8 +1675,8 @@ class _HomeScreenState extends State<HomeScreen>
     if (response != null && response['success']) {
       String serverVersion = response['version'];
       PackageInfo packageInfo = await PackageInfo.fromPlatform();
-      // String currentVersion = packageInfo.version;
-      String currentVersion = "2.8.1";
+      String currentVersion = packageInfo.version;
+      // String currentVersion = "2.8.1";
 
       print("Version check : ${serverVersion} ${currentVersion}");
       bool isVersionMismatch = false;

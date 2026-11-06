@@ -17,6 +17,7 @@ class LoanDetailsResponse {
   final String? disbursementDate;
   final String? maturityDate;
   final String? loanAmount;
+  final String? finActiveStatus;
 
   LoanDetailsResponse({
     this.lan,
@@ -37,6 +38,7 @@ class LoanDetailsResponse {
     this.disbursementDate,
     this.maturityDate,
     this.loanAmount,
+    this.finActiveStatus,
   });
 
   factory LoanDetailsResponse.fromJson(Map<String, dynamic> json) {
@@ -59,6 +61,7 @@ class LoanDetailsResponse {
       disbursementDate: json['disbDate']?.toString(),
       maturityDate: json['maturityDate']?.toString(),
       loanAmount: json['loanAmount']?.toString(),
+      finActiveStatus: json['finActiveStatus']?.toString(),
     );
   }
 
@@ -69,6 +72,7 @@ class LoanDetailsResponse {
       'branch': branch?.toJson(),
       'pos': pos,
       'legal': legal?.toJson(),
+      'finActiveStatus': finActiveStatus,
     };
   }
 }

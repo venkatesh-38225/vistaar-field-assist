@@ -385,87 +385,97 @@ class _VoiceOfTeamScreenState extends State<VoiceOfTeamScreen> {
         borderRadius: BorderRadius.circular(10),
       ),
       color: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor:
-                      Constant.mediumBlueColor.withValues(alpha: 0.1),
-                  radius: 18,
-                  child: const Icon(Icons.account_balance,
-                      color: Constant.mediumBlueColor, size: 18),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () async {
+          final result = await Get.to(() => CreateVoiceOfTeamScreen(
+                profile: widget.profile,
+                initialLan: item,
+              ));
+          if (result == true) fetchRecords();
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor:
+                        Constant.mediumBlueColor.withValues(alpha: 0.1),
+                    radius: 18,
+                    child: const Icon(Icons.account_balance,
+                        color: Constant.mediumBlueColor, size: 18),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CustomText(
+                          text: item.lan,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF102F54),
+                        ),
+                        const SizedBox(height: 2),
+                        CustomText(
+                          text: item.custName,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black87,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
                     children: [
+                      const Icon(Icons.badge_outlined,
+                          size: 15, color: Colors.grey),
+                      const SizedBox(width: 5),
                       CustomText(
-                        text: item.lan,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF102F54),
-                      ),
-                      const SizedBox(height: 2),
-                      CustomText(
-                        text: item.custName,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black87,
+                        text: 'Emp ID: ${item.empId}',
+                        fontSize: 12,
+                        color: Colors.grey.shade700,
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-            const Divider(height: 18),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.badge_outlined,
-                        size: 15, color: Colors.grey),
-                    const SizedBox(width: 5),
-                    CustomText(
-                      text: 'Emp ID: ${item.empId}',
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      final result = await Get.to(() => CreateVoiceOfTeamScreen(
+                            profile: widget.profile,
+                            initialLan: item,
+                          ));
+                      if (result == true) fetchRecords();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Constant.mediumBlueColor,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    icon: const Icon(Icons.edit_note,
+                        color: Colors.white, size: 16),
+                    label: const CustomText(
+                      text: 'CREATE',
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
                       fontSize: 12,
-                      color: Colors.grey.shade700,
-                    ),
-                  ],
-                ),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    final result = await Get.to(() => CreateVoiceOfTeamScreen(
-                          profile: widget.profile,
-                          initialLan: item,
-                        ));
-                    if (result == true) fetchRecords();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Constant.mediumBlueColor,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
                     ),
                   ),
-                  icon: const Icon(Icons.edit_note,
-                      color: Colors.white, size: 16),
-                  label: const CustomText(
-                    text: 'CREATE',
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -528,139 +538,153 @@ class _VoiceOfTeamScreenState extends State<VoiceOfTeamScreen> {
         borderRadius: BorderRadius.circular(10),
       ),
       color: Colors.white,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Top Row: LAN and Status badge
-                Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor:
-                          Constant.lightBlueColor.withValues(alpha: 0.1),
-                      radius: 18,
-                      child: const Icon(Icons.record_voice_over,
-                          color: Constant.lightBlueColor, size: 18),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CustomText(
-                            text: record.lan,
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF102F54),
-                          ),
-                          CustomText(
-                            text: record.custName,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
-                        ],
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () async {
+          if (canAct) {
+            final result = await Get.to(() => VoiceOfTeamApprovalScreen(
+                  caseItem: record,
+                  profile: widget.profile,
+                ));
+            if (result == true) fetchRecords();
+          } else {
+            Get.to(() => VoiceOfTeamDetailsScreen(caseItem: record));
+          }
+        },
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top Row: LAN and Status badge
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor:
+                            Constant.lightBlueColor.withValues(alpha: 0.1),
+                        radius: 18,
+                        child: const Icon(Icons.record_voice_over,
+                            color: Constant.lightBlueColor, size: 18),
                       ),
-                    ),
-                    _buildStatusBadge(record.status),
-                  ],
-                ),
-                const Divider(height: 16),
-
-                // Info Rows
-                if (branch.isNotEmpty)
-                  _infoRow(Icons.storefront_outlined, 'Branch', branch),
-                _infoRow(
-                  Icons.currency_rupee,
-                  'Disbursed',
-                  '$disbAmountFormatted',
-                ),
-                _infoRow(
-                  Icons.currency_rupee,
-                  'POS',
-                  '$posFormatted',
-                ),
-                if (record.dpd != null)
-                  _infoRow(
-                    Icons.timer_outlined,
-                    'DPD',
-                    '${record.dpd} days',
-                  ),
-                if (record.customerIssue?.trim().isNotEmpty == true)
-                  _infoRow(
-                    Icons.report_problem_outlined,
-                    'Issue',
-                    record.customerIssue!,
-                  ),
-                if (record.zdshDecision?.trim().isNotEmpty == true)
-                  _infoRow(
-                    Icons.gavel_outlined,
-                    'ZDSH Decision',
-                    record.zdshDecision!,
-                  ),
-                if (record.createdDt != null)
-                  _infoRow(
-                    Icons.schedule_outlined,
-                    'Created Date',
-                    DateFormat('dd-MMM-yyyy').format(record.createdDt!),
-                  ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-
-          // Action Buttons Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton.icon(
-                  onPressed: () {
-                    Get.to(() => VoiceOfTeamDetailsScreen(caseItem: record));
-                  },
-                  icon: const Icon(Icons.visibility_outlined, size: 17),
-                  label: const Text('VIEW'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Constant.mediumBlueColor,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                  ),
-                ),
-                if (canAct) ...[
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      final result =
-                          await Get.to(() => VoiceOfTeamApprovalScreen(
-                                caseItem: record,
-                                profile: widget.profile,
-                              ));
-                      if (result == true) fetchRecords();
-                    },
-                    icon: const Icon(Icons.play_circle_outline,
-                        size: 16, color: Colors.white),
-                    label: const Text(
-                      'ACTION',
-                      style: TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Constant.mediumYellowColor,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CustomText(
+                              text: record.lan,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF102F54),
+                            ),
+                            CustomText(
+                              text: record.custName,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87,
+                            ),
+                          ],
+                        ),
                       ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
-                    ),
+                      _buildStatusBadge(record.status),
+                    ],
                   ),
+                  const Divider(height: 16),
+
+                  // Info Rows
+                  if (branch.isNotEmpty)
+                    _infoRow(Icons.storefront_outlined, 'Branch', branch),
+                  _infoRow(
+                    Icons.currency_rupee,
+                    'Disbursed',
+                    '$disbAmountFormatted',
+                  ),
+                  _infoRow(
+                    Icons.currency_rupee,
+                    'POS',
+                    '$posFormatted',
+                  ),
+                  if (record.dpd != null)
+                    _infoRow(
+                      Icons.timer_outlined,
+                      'DPD',
+                      '${record.dpd} days',
+                    ),
+                  if (record.customerIssue?.trim().isNotEmpty == true)
+                    _infoRow(
+                      Icons.report_problem_outlined,
+                      'Issue',
+                      record.customerIssue!,
+                    ),
+                  if (record.zdshDecision?.trim().isNotEmpty == true)
+                    _infoRow(
+                      Icons.gavel_outlined,
+                      'ZDSH Decision',
+                      record.zdshDecision!,
+                    ),
+                  if (record.createdDt != null)
+                    _infoRow(
+                      Icons.schedule_outlined,
+                      'Created Date',
+                      DateFormat('dd-MMM-yyyy').format(record.createdDt!),
+                    ),
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+            const Divider(height: 1),
+
+            // Action Buttons Bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    onPressed: () {
+                      Get.to(() => VoiceOfTeamDetailsScreen(caseItem: record));
+                    },
+                    icon: const Icon(Icons.visibility_outlined, size: 17),
+                    label: const Text('VIEW'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Constant.mediumBlueColor,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                  ),
+                  if (canAct) ...[
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        final result =
+                            await Get.to(() => VoiceOfTeamApprovalScreen(
+                                  caseItem: record,
+                                  profile: widget.profile,
+                                ));
+                        if (result == true) fetchRecords();
+                      },
+                      icon: const Icon(Icons.play_circle_outline,
+                          size: 16, color: Colors.white),
+                      label: const Text(
+                        'ACTION',
+                        style: TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Constant.mediumYellowColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 8),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

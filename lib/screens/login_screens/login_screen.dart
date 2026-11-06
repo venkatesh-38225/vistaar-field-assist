@@ -329,7 +329,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (response != null) {
       if (response['success']) {
         String serverVersion = response['version'];
-        String currentVersion = "2.8.1";
+        // String currentVersion = "2.8.1";
 
         print(
             "App version (Server):  $serverVersion, App version (Local): $currentVersion");

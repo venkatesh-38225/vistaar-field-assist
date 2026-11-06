@@ -44,14 +44,14 @@ class ApiClient {
       'Basic ${base64Encode(utf8.encode('rzp_live_wttpRiUPLjNEWp:XfOfOV8WuWYsdCPpNDWOc77L'))}';
 
   // Live
-  // final String baseUrl = 'https://productivity.vistaarfinance.net.in:474/api/';
-  // final String legalNoticebaseUrl =
-  //     'https://vistaarapis.vistaarfinance.net.in:482/api/';
+  final String baseUrl = 'https://productivity.vistaarfinance.net.in:474/api/';
+  final String legalNoticebaseUrl =
+      'https://vistaarapis.vistaarfinance.net.in:482/api/';
 
   // UAT
-  final String baseUrl = 'https://productivity.vistaarfinance.net.in:473/api/';
-  final String legalNoticebaseUrl =
-      'https://vistaarapis.vistaarfinance.net.in:480/api/';
+  // final String baseUrl = 'https://productivity.vistaarfinance.net.in:473/api/';
+  // final String legalNoticebaseUrl =
+  //     'https://vistaarapis.vistaarfinance.net.in:480/api/';
 
   bool get isDevMode => baseUrl.contains(':473');
 
@@ -552,10 +552,12 @@ class ApiClient {
     var url =
         Uri.parse('https://api.razorpay.com/v1/fund_accounts/validations');
 
-    print("================== penipingAccountValidation REQUEST ==================");
+    print(
+        "================== penipingAccountValidation REQUEST ==================");
     print("URL: $url");
     print("Body: $jsonObject");
-    print("=======================================================================");
+    print(
+        "=======================================================================");
 
     try {
       final response = await _client
@@ -567,10 +569,12 @@ class ApiClient {
               body: jsonObject)
           .timeout(_timeLimit);
 
-      print("================== penipingAccountValidation RESPONSE =================");
+      print(
+          "================== penipingAccountValidation RESPONSE =================");
       print("Status Code: ${response.statusCode}");
       print("Response Body: ${response.body}");
-      print("=======================================================================");
+      print(
+          "=======================================================================");
 
       if (response.statusCode == 200) {
         var responseBody = response.body;
@@ -580,9 +584,11 @@ class ApiClient {
         return null;
       }
     } catch (e) {
-      print("================== penipingAccountValidation ERROR ====================");
+      print(
+          "================== penipingAccountValidation ERROR ====================");
       print("Error: $e");
-      print("=======================================================================");
+      print(
+          "=======================================================================");
       return null;
     }
   }
@@ -664,6 +670,7 @@ class ApiClient {
           alternateMobile: data['alternateMobile']?.toString(),
           residentialAddress: data['residentialAddress']?.toString(),
           propertyAddress: data['propertyAddress']?.toString(),
+          finActiveStatus: data['finActiveStatus']?.toString(),
           branch: Branch(
             branchCode: data['branchCode']?.toString(),
             branchName: data['branchName']?.toString(),
@@ -714,6 +721,7 @@ class ApiClient {
           alternateMobile: data['alternateMobile']?.toString(),
           residentialAddress: data['residentialAddress']?.toString(),
           propertyAddress: data['propertyAddress']?.toString(),
+          // finActiveStatus: data['finActiveStatus']?.toString(),
           branch: Branch(
             branchCode: data['branchCode']?.toString(),
             branchName: data['branchName']?.toString(),
@@ -1748,10 +1756,17 @@ class ApiClient {
       request.fields['FileType'] = fileType;
       request.fields['createdBy'] = createdBy;
 
+      final filename = file.path.split('/').last.split('\\').last;
+      print(
+          'UPLOADING VOT FILE: CaseId=$caseId, FileType=$fileType, name=$filename, path=${file.path}');
+
       request.files.add(
         await http.MultipartFile.fromPath(
           'File',
           file.path,
+          filename: filename.isNotEmpty
+              ? filename
+              : '${fileType}_${DateTime.now().millisecondsSinceEpoch}.jpg',
         ),
       );
 

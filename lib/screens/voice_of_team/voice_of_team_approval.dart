@@ -58,7 +58,7 @@ class _VoiceOfTeamApprovalScreenState extends State<VoiceOfTeamApprovalScreen> {
   String? selectedDecision;
   final List<String> decisionOptions = [
     'Recommended for Audit',
-    'Reviewed – No Major Issue',
+    'Reviewed - No Major Issue',
   ];
 
   final TextEditingController remarksController = TextEditingController();
@@ -155,7 +155,7 @@ class _VoiceOfTeamApprovalScreenState extends State<VoiceOfTeamApprovalScreen> {
 
     final confirmed = await CustomConfirmDialog.show(
       context: context,
-      title: 'Submit ZDSH Review',
+      title: 'Submit Review',
       message:
           'Are you sure you want to submit approval review for LAN: ${_caseItem.lan}?',
       confirmText: 'Submit Approval',
@@ -285,7 +285,7 @@ class _VoiceOfTeamApprovalScreenState extends State<VoiceOfTeamApprovalScreen> {
                     CircularProgressIndicator(color: Constant.lightBlueColor),
                     SizedBox(height: 16),
                     CustomText(
-                      text: 'Submitting ZDSH review...',
+                      text: 'Submitting review...',
                       fontSize: 14,
                       color: Colors.grey,
                     ),
@@ -727,7 +727,7 @@ class _VoiceOfTeamApprovalScreenState extends State<VoiceOfTeamApprovalScreen> {
                           ),
                           const SizedBox(width: 8),
                           const CustomText(
-                            text: 'ZDSH Review & Action',
+                            text: 'Review & Action',
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF102F54),

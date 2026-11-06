@@ -10,6 +10,7 @@ import 'package:re_kyc_mobile_app/models/voice_of_team_models.dart';
 import 'package:re_kyc_mobile_app/service/api_client.dart';
 import 'package:re_kyc_mobile_app/utils/constant.dart';
 import 'package:re_kyc_mobile_app/utils/global_snackbar.dart';
+import 'package:re_kyc_mobile_app/utils/helper.dart';
 import 'package:re_kyc_mobile_app/widgets/custom_confirm_dialog.dart';
 import 'package:re_kyc_mobile_app/widgets/custom_text.dart';
 
@@ -35,7 +36,7 @@ class _CreateVoiceOfTeamScreenState extends State<CreateVoiceOfTeamScreen> {
   // Top Search Controllers & State (No pre-selected values)
   final TextEditingController lanController = TextEditingController();
   String? selectedCaseType;
-  final List<String> caseTypeOptions = ['Fresh Case', 'Flow Case'];
+  final List<String> caseTypeOptions = ['Fresh Case', 'Flow Case', 'Others'];
 
   bool isLanSearching = false;
   bool isDetailsFetched = false;
@@ -63,9 +64,10 @@ class _CreateVoiceOfTeamScreenState extends State<CreateVoiceOfTeamScreen> {
     'Funding of Money by Employee',
     'Funding of Money by DSA Team',
     'Business Impersonation',
-    'Business Closed in 6 Months to 12 Months',
+    'Business Closed in 6 Months to 12 Months of Sourcing',
     'Property Mismatch',
     'Inflated Valuation',
+    'No Discrepancy Found',
   ];
   final TextEditingController cdsmRemarksController = TextEditingController();
 
@@ -181,6 +183,17 @@ class _CreateVoiceOfTeamScreenState extends State<CreateVoiceOfTeamScreen> {
       if (response is LoanDetailsResponse &&
           response.fullName != null &&
           response.fullName!.trim().isNotEmpty) {
+        final finStatus = response.finActiveStatus?.trim().toUpperCase();
+        if (finStatus != null && finStatus != 'A') {
+          setState(() {
+            isLanSearching = false;
+            isDetailsFetched = false;
+            _clearLanDetails();
+          });
+          GlobalSnackbar.showError('This lan is Inactive or closed');
+          return;
+        }
+
         final foreClosureResponse =
             await ApiClient().getForeClosureDetails(lan);
         if (!mounted) return;
@@ -213,12 +226,10 @@ class _CreateVoiceOfTeamScreenState extends State<CreateVoiceOfTeamScreen> {
               (response['data'] is Map &&
                   (response['data']['custName'] != null ||
                       response['data']['fullName'] != null)) ||
-              (response['custName'] != null ||
-                  response['fullName'] != null))) {
+              (response['custName'] != null || response['fullName'] != null))) {
         final data = response['data'] is Map ? response['data'] : response;
-        final name = data['custName']?.toString() ??
-            data['fullName']?.toString() ??
-            '';
+        final name =
+            data['custName']?.toString() ?? data['fullName']?.toString() ?? '';
 
         if (name.trim().isEmpty) {
           final errMsg = _extractErrorMessage(response) ??
@@ -229,6 +240,18 @@ class _CreateVoiceOfTeamScreenState extends State<CreateVoiceOfTeamScreen> {
             _clearLanDetails();
           });
           GlobalSnackbar.showError(errMsg);
+          return;
+        }
+
+        final finStatus =
+            data['finActiveStatus']?.toString().trim().toUpperCase();
+        if (finStatus != null && finStatus != 'A') {
+          setState(() {
+            isLanSearching = false;
+            isDetailsFetched = false;
+            _clearLanDetails();
+          });
+          GlobalSnackbar.showError('This lan is Inactive or closed');
           return;
         }
 
@@ -337,11 +360,32 @@ class _CreateVoiceOfTeamScreenState extends State<CreateVoiceOfTeamScreen> {
                   title: const CustomText(text: 'Take Photo from Camera'),
                   onTap: () async {
                     Navigator.pop(ctx);
-                    final XFile? photo = await _picker.pickImage(
-                      source: ImageSource.camera,
-                      imageQuality: 80,
-                    );
-                    _handlePickedFile(photo, targetList);
+                    try {
+                      final XFile? photo = await _picker.pickImage(
+                        source: ImageSource.camera,
+                        maxWidth: 1920,
+                        maxHeight: 1920,
+                        imageQuality: 80,
+                      );
+                      if (photo != null && photo.path.isNotEmpty) {
+                        _handlePickedFile(photo, targetList);
+                      } else {
+                        final String path = await CustomsHelper().getCamera();
+                        if (path.isNotEmpty) {
+                          _handlePickedFile(XFile(path), targetList);
+                        }
+                      }
+                    } catch (e) {
+                      debugPrint('Error picking from camera: $e');
+                      try {
+                        final String path = await CustomsHelper().getCamera();
+                        if (path.isNotEmpty) {
+                          _handlePickedFile(XFile(path), targetList);
+                        }
+                      } catch (err) {
+                        GlobalSnackbar.showError('Unable to capture photo');
+                      }
+                    }
                   },
                 ),
                 ListTile(
@@ -353,11 +397,35 @@ class _CreateVoiceOfTeamScreenState extends State<CreateVoiceOfTeamScreen> {
                   title: const CustomText(text: 'Choose from Gallery'),
                   onTap: () async {
                     Navigator.pop(ctx);
-                    final XFile? photo = await _picker.pickImage(
-                      source: ImageSource.gallery,
-                      imageQuality: 80,
-                    );
-                    _handlePickedFile(photo, targetList);
+                    try {
+                      final XFile? photo = await _picker.pickImage(
+                        source: ImageSource.gallery,
+                        maxWidth: 1920,
+                        maxHeight: 1920,
+                        imageQuality: 80,
+                      );
+                      if (photo != null && photo.path.isNotEmpty) {
+                        _handlePickedFile(photo, targetList);
+                      } else {
+                        final String path =
+                            await CustomsHelper().getGalleryFile();
+                        if (path.isNotEmpty) {
+                          _handlePickedFile(XFile(path), targetList);
+                        }
+                      }
+                    } catch (e) {
+                      debugPrint('Error picking from gallery: $e');
+                      try {
+                        final String path =
+                            await CustomsHelper().getGalleryFile();
+                        if (path.isNotEmpty) {
+                          _handlePickedFile(XFile(path), targetList);
+                        }
+                      } catch (err) {
+                        GlobalSnackbar.showError(
+                            'Unable to choose photo from gallery');
+                      }
+                    }
                   },
                 ),
               ],
@@ -368,20 +436,32 @@ class _CreateVoiceOfTeamScreenState extends State<CreateVoiceOfTeamScreen> {
     );
   }
 
-  void _handlePickedFile(XFile? photo, List<File> targetList) {
-    if (photo == null) return;
-    final file = File(photo.path);
-    final int sizeInBytes = file.lengthSync();
-    final double sizeInMB = sizeInBytes / (1024 * 1024);
+  void _handlePickedFile(XFile? photo, List<File> targetList) async {
+    if (photo == null || photo.path.isEmpty) return;
+    try {
+      final file = File(photo.path);
+      if (!await file.exists()) {
+        debugPrint('Picked file does not exist: ${photo.path}');
+        return;
+      }
+      final int sizeInBytes = await file.length();
+      final double sizeInMB = sizeInBytes / (1024 * 1024);
 
-    if (sizeInMB > 5.0) {
-      GlobalSnackbar.showError('File size exceeds 5MB limit');
-      return;
+      if (sizeInMB > 5.0) {
+        GlobalSnackbar.showError(
+            'File size exceeds 5MB limit (${sizeInMB.toStringAsFixed(1)}MB)');
+        return;
+      }
+
+      if (mounted) {
+        setState(() {
+          targetList.add(file);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error handling picked file: $e');
+      GlobalSnackbar.showError('Failed to process selected file');
     }
-
-    setState(() {
-      targetList.add(file);
-    });
   }
 
   Future<void> _submitVoiceOfTeam() async {
@@ -531,14 +611,18 @@ class _CreateVoiceOfTeamScreenState extends State<CreateVoiceOfTeamScreen> {
   }
 
   Future<void> _uploadAllAttachments(int caseId, String empId) async {
+    debugPrint(
+        'VOT Attachments count: Property=${propertyPhotos.length}, Business=${businessPhotos.length}, Residence=${residencePhotos.length}');
+
     for (var file in propertyPhotos) {
       try {
-        await ApiClient().uploadVoiceOfTeamFile(
+        final res = await ApiClient().uploadVoiceOfTeamFile(
           caseId: caseId,
           fileType: 'PropertyPhoto',
           file: file,
           createdBy: empId,
         );
+        debugPrint('PropertyPhoto upload result: $res');
       } catch (e) {
         debugPrint('Error uploading PropertyPhoto: $e');
       }
@@ -546,12 +630,13 @@ class _CreateVoiceOfTeamScreenState extends State<CreateVoiceOfTeamScreen> {
 
     for (var file in businessPhotos) {
       try {
-        await ApiClient().uploadVoiceOfTeamFile(
+        final res = await ApiClient().uploadVoiceOfTeamFile(
           caseId: caseId,
           fileType: 'BusinessPhoto',
           file: file,
           createdBy: empId,
         );
+        debugPrint('BusinessPhoto upload result: $res');
       } catch (e) {
         debugPrint('Error uploading BusinessPhoto: $e');
       }
@@ -559,12 +644,13 @@ class _CreateVoiceOfTeamScreenState extends State<CreateVoiceOfTeamScreen> {
 
     for (var file in residencePhotos) {
       try {
-        await ApiClient().uploadVoiceOfTeamFile(
+        final res = await ApiClient().uploadVoiceOfTeamFile(
           caseId: caseId,
           fileType: 'ResidencePhoto',
           file: file,
           createdBy: empId,
         );
+        debugPrint('ResidencePhoto upload result: $res');
       } catch (e) {
         debugPrint('Error uploading ResidencePhoto: $e');
       }
@@ -919,7 +1005,9 @@ class _CreateVoiceOfTeamScreenState extends State<CreateVoiceOfTeamScreen> {
               controller: cdsmRemarksController,
               maxLines: 3,
               decoration: InputDecoration(
-                labelText: 'Detailed Remarks *',
+                labelText: selectedCustomerIssue == 'No Discrepancy Found'
+                    ? 'Detailed Remarks (Optional)'
+                    : 'Detailed Remarks *',
                 hintText: 'Enter detailed field observations and remarks...',
                 labelStyle: const TextStyle(fontSize: 14),
                 hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
@@ -927,9 +1015,14 @@ class _CreateVoiceOfTeamScreenState extends State<CreateVoiceOfTeamScreen> {
                     OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                 contentPadding: const EdgeInsets.all(12),
               ),
-              validator: (val) => val == null || val.trim().isEmpty
-                  ? 'Detailed remarks are required'
-                  : null,
+              validator: (val) {
+                if (selectedCustomerIssue == 'No Discrepancy Found') {
+                  return null;
+                }
+                return val == null || val.trim().isEmpty
+                    ? 'Detailed remarks are required'
+                    : null;
+              },
             ),
           ],
         ),
@@ -1002,7 +1095,7 @@ class _CreateVoiceOfTeamScreenState extends State<CreateVoiceOfTeamScreen> {
               value: selectedLoanRecoverable,
               decoration: InputDecoration(
                 labelText: 'Whether Loan Can be recovered by Sale? *',
-                hintText: 'Select Yes / No',
+                hintText: 'Select',
                 labelStyle: const TextStyle(fontSize: 14),
                 hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
                 border:

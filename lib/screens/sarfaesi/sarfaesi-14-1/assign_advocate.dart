@@ -569,25 +569,12 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen>
                       size: 20,
                     ),
                     const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const CustomText(
-                            text: 'Document Requirements',
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF102F54),
-                          ),
-                          const SizedBox(height: 2),
-                          CustomText(
-                            text: isScannedCopy
-                                ? 'Scanned transmission mode detected (Optional)'
-                                : 'Document requirement confirmation (Optional)',
-                            fontSize: 11,
-                            color: Colors.grey.shade600,
-                          ),
-                        ],
+                    const Expanded(
+                      child: CustomText(
+                        text: 'Do you Require Physical Documents or Additional Documents? (Optional)',
+                        fontSize: 13,
+                        // fontWeight: FontWeight.bold,
+                        color: Color(0xFF102F54),
                       ),
                     ),
                     if (_isSubmittingRequirement)
@@ -634,12 +621,6 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen>
                               label: 'Yes',
                               isYes: true,
                             ),
-                            const SizedBox(width: 8),
-                            _buildChoiceButton(
-                              questionType: 'Physical Documents',
-                              label: 'No',
-                              isYes: false,
-                            ),
                           ],
                         ),
                       ),
@@ -674,12 +655,6 @@ class _AssignAdvocateScreenState extends State<AssignAdvocateScreen>
                           questionType: 'Additional Documents',
                           label: 'Yes',
                           isYes: true,
-                        ),
-                        const SizedBox(width: 8),
-                        _buildChoiceButton(
-                          questionType: 'Additional Documents',
-                          label: 'No',
-                          isYes: false,
                         ),
                       ],
                     ),
